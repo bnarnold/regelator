@@ -118,6 +118,24 @@ This document captures technical decisions, lessons learned, and implementation 
 **Technical debt:**
 - None identified yet
 
+### Story 1.2 - Basic HTML Templating
+**What worked well:**
+- Minijinja integrates cleanly with Axum
+- Template inheritance works as expected
+- Pico.css CDN provides clean styling without local assets
+- Application state pattern scales well for shared resources
+
+**What to improve:**
+- Consider template hot-reloading for development
+
+**Technical debt:**
+- Templates loaded from filesystem at runtime (acceptable for now)
+
+**Key decisions:**
+- Used `loader` feature for minijinja to load templates from filesystem
+- Implemented proper error handling with AppError wrapper
+- Eyre errors logged and mapped to opaque 500 responses for security
+
 ---
 
 ## Future Technical Decisions

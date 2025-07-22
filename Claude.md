@@ -33,6 +33,9 @@ The underlying rules document, and all applications, should be localized, with a
 - Run the application with `cargo run`
 - Test the application with `cargo test`
 - Install crates with `cargo add` (the lock file is `Cargo.lock`)
+- Build and check for compilation errors with `cargo build`
+- Format code with `cargo fmt`
+- Lint code with `cargo clippy`
 
 ## Technology stack
 

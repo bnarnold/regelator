@@ -19,12 +19,12 @@
 
 ---
 
-### Story 1.2: Basic HTML Templating ⏳ **Pending**
+### Story 1.2: Basic HTML Templating ✅ **Completed**
 **Acceptance Criteria:**
-- [ ] Add `minijinja` for HTML templating
-- [ ] Create basic HTML page template with proper structure
-- [ ] Add route for root `/` that returns rendered HTML
-- [ ] Include basic CSS framework (pico.css) for styling
+- [x] Add `minijinja` for HTML templating
+- [x] Create basic HTML page template with proper structure
+- [x] Add route for root `/` that returns rendered HTML
+- [x] Include basic CSS framework (pico.css) for styling
 
 **Testing:**
 - Manual: Visit `http://localhost:8000/` and see properly formatted HTML page
@@ -80,7 +80,7 @@
 
 ## Progress Tracking
 
-**Stories Completed:** 1/4 setup stories (25%)
+**Stories Completed:** 2/4 setup stories (50%)
 **Current Velocity:** 1 story/session (baseline)
 **Blockers:** None
 

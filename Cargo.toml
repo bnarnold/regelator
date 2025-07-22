@@ -5,4 +5,6 @@ edition = "2021"
 
 [dependencies]
 axum = "0.8.4"
+eyre = "0.6.12"
+minijinja = { version = "2.11.0", features = ["loader"] }
 tokio = { version = "1.46.1", features = ["full"] }
