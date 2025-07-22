@@ -32,12 +32,13 @@
 
 ---
 
-### Story 1.3: Static File Serving ⏳ **Pending**
+### Story 1.3: Static File Serving ✅ **Completed**
 **Acceptance Criteria:**
-- [ ] Configure Axum to serve static files (CSS, JS, images)
-- [ ] Create `static/` directory structure
-- [ ] Add pico.css as static asset
-- [ ] Verify static assets load correctly in browser
+- [x] Configure Axum to serve static files (CSS, JS, images)
+- [x] Create `static/` directory structure
+- [x] Add pico.css as static asset with versioning
+- [x] Verify static assets load correctly in browser
+- [x] Add GZip compression and cache headers
 
 **Testing:**
 - Manual: CSS styles apply correctly to HTML pages
@@ -80,7 +81,7 @@
 
 ## Progress Tracking
 
-**Stories Completed:** 2/4 setup stories (50%)
+**Stories Completed:** 3/4 setup stories (75%)
 **Current Velocity:** 1 story/session (baseline)
 **Blockers:** None
 

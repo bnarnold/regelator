@@ -1,12 +1,16 @@
 use axum::{
     extract::State,
-    http::StatusCode,
+    http::{header, HeaderValue, StatusCode},
     response::{Html, IntoResponse, Response},
     routing::get,
     Router,
 };
 use minijinja::Environment;
 use std::sync::Arc;
+use tower::Layer;
+use tower_http::{
+    compression::CompressionLayer, services::ServeDir, set_header::SetResponseHeaderLayer,
+};
 
 #[derive(Clone)]
 struct AppState {
@@ -17,7 +21,7 @@ impl AppState {
     fn new() -> Self {
         let mut env = Environment::new();
         env.set_loader(minijinja::path_loader("src/templates"));
-        
+
         AppState {
             templates: Arc::new(env),
         }
@@ -51,12 +55,21 @@ async fn home(State(state): State<AppState>) -> Result<Html<String>, AppError> {
 #[tokio::main]
 async fn main() {
     let state = AppState::new();
-    
+
     let app = Router::new()
         .route("/", get(home))
         .route("/health", get(|| async { "OK" }))
+        .nest_service(
+            "/static",
+            SetResponseHeaderLayer::if_not_present(
+                header::CACHE_CONTROL,
+                HeaderValue::from_static("public, max-age=31536000, immutable"),
+            )
+            .layer(ServeDir::new("static")),
+        )
+        .layer(CompressionLayer::new())
         .with_state(state);
-        
+
     let listener = tokio::net::TcpListener::bind("[::]:8000")
         .await
         .expect("Bind socket");

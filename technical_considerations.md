@@ -81,7 +81,9 @@ This document captures technical decisions, lessons learned, and implementation 
 - Primary read operations with occasional updates
 
 ### Optimization Notes
-- *[To be filled as performance issues are identified]*
+- Static assets cached for 1 year with versioned filenames
+- GZip compression reduces bandwidth usage (~70% compression for CSS/HTML)
+- Template compilation happens once at startup
 
 ---
 
@@ -135,6 +137,25 @@ This document captures technical decisions, lessons learned, and implementation 
 - Used `loader` feature for minijinja to load templates from filesystem
 - Implemented proper error handling with AppError wrapper
 - Eyre errors logged and mapped to opaque 500 responses for security
+
+### Story 1.3 - Static File Serving
+**What worked well:**
+- Tower-http ServeDir integrates cleanly with Axum
+- Versioned filenames enable aggressive caching (1 year max-age)
+- GZip compression works automatically for all responses
+- Layer composition pattern scales well
+
+**What to improve:**
+- Manual versioning process could be automated in future
+
+**Technical debt:**
+- None identified
+
+**Key decisions:**
+- Used versioned filenames (`pico-v2.css`) for cache busting
+- Applied long-term caching headers with `immutable` directive
+- Added GZip compression layer for bandwidth optimization
+- Used tower Layer trait for composing middleware
 
 ---
 
