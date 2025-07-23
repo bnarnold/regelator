@@ -4,10 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = "0.8.4"
-diesel = { version = "2.2.12", features = ["r2d2", "sqlite"] }
+axum = { version = "0.8.4", features = ["macros"] }
+chrono = { version = "0.4.41", features = ["serde"] }
+diesel = { version = "2.2.12", features = ["chrono", "r2d2", "sqlite"] }
 eyre = "0.6.12"
 minijinja = { version = "2.11.0", features = ["loader"] }
 tokio = { version = "1.46.1", features = ["full"] }
 tower = "0.5.2"
 tower-http = { version = "0.6.6", features = ["compression-gzip", "fs", "set-header"] }
+uuid = { version = "1.17.0", features = ["v7"] }

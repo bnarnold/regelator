@@ -10,6 +10,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 2. **`project_plan_{some_extension}.md`** - Current progress and next story to work on  
 3. **`technical_considerations.md`** - Lessons learned and implementation decisions
 4. **`architecture.md`** - Overall architecture and design decisions
+5. **`data_model_design.md`** - Database schema design principles and decisions
+6. **`docs/schema.md`** - Current database schema (Mermaid diagram)
 
 **Key workflow reminders:**
 

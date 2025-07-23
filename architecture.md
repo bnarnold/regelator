@@ -24,6 +24,7 @@ She wants to stay up to date with rules changes and have a quick reference to sh
 
 ### Fred Federator
 
-Fred is in the rules committee of his national federation.
-He wants to enable members of his community to learn about the rules.
-To target the committee's actions, he also wants to collect statistics about use of the application.
+Fred is in the rules committee of his national federation and coordinates rule translations.
+He wants to enable members of his community to learn about the rules in their native language.
+He supports translators by providing tools to compare translated versions with the English original.
+To target the committee's actions, he also wants to collect statistics about application usage and identify commonly referenced rules.

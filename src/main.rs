@@ -1,5 +1,5 @@
 use axum::{
-    extract::State,
+    extract::{FromRef, State},
     http::{header, HeaderValue, StatusCode},
     response::{Html, IntoResponse, Response},
     routing::get,
@@ -9,16 +9,22 @@ use diesel::{r2d2::{ConnectionManager, Pool}, sql_query, sqlite::SqliteConnectio
 use minijinja::Environment;
 use std::sync::Arc;
 
+mod models;
+mod repository;
+
+use repository::RuleRepository;
+
 type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 use tower::Layer;
 use tower_http::{
     compression::CompressionLayer, services::ServeDir, set_header::SetResponseHeaderLayer,
 };
 
-#[derive(Clone)]
+#[derive(Clone, FromRef)]
 struct AppState {
     templates: Arc<Environment<'static>>,
     db: DbPool,
+    rule_repository: RuleRepository,
 }
 
 impl AppState {
@@ -33,7 +39,8 @@ impl AppState {
 
         Ok(AppState {
             templates: Arc::new(env),
-            db: pool,
+            db: pool.clone(),
+            rule_repository: RuleRepository::new(pool),
         })
     }
 }
