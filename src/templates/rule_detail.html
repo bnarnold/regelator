@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Rule {{ rule.number }} - {{ rule.title }}{% endblock %}
+
+{% block content %}
+<section>
+    <nav>
+        <a href="/{{ language }}/rules/{{ rule_set_slug }}">← Back to {{ rule_set_slug | title }} Rules</a>
+    </nav>
+    
+    <article class="rule-detail">
+        <header>
+            <h1>
+                <span class="rule-number">{{ rule.number }}</span>
+                <span class="rule-title">{{ rule.title }}</span>
+            </h1>
+        </header>
+        
+        <div class="rule-content">
+            <!-- TODO: Process markdown -->
+            <pre>{{ rule.content_markdown }}</pre>
+        </div>
+        
+        {% if child_rules %}
+        <section class="child-rules">
+            <h2>Sub-rules</h2>
+            <ol class="rule-list">
+                {% for child in child_rules %}
+                <li class="rule-item">
+                    <a href="/{{ language }}/rules/{{ rule_set_slug }}/{{ child.slug }}" class="rule-link">
+                        <span class="rule-number">{{ child.number }}</span>
+                        <span class="rule-title">{{ child.title }}</span>
+                    </a>
+                </li>
+                {% endfor %}
+            </ol>
+        </section>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

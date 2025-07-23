@@ -21,7 +21,9 @@ impl RuleRepository {
     pub fn get_rule_sets(&self) -> Result<Vec<RuleSet>> {
         use crate::models::rule_sets::dsl::*;
 
-        let mut conn = self.pool.get()
+        let mut conn = self
+            .pool
+            .get()
             .wrap_err("Failed to get database connection")?;
 
         let results = rule_sets
@@ -37,7 +39,9 @@ impl RuleRepository {
         use crate::models::rule_sets::dsl as rs_dsl;
         use crate::models::versions::dsl as v_dsl;
 
-        let mut conn = self.pool.get()
+        let mut conn = self
+            .pool
+            .get()
             .wrap_err("Failed to get database connection")?;
 
         let result = v_dsl::versions
@@ -52,15 +56,43 @@ impl RuleRepository {
         Ok(result)
     }
 
+    /// Get version by name for a rule set
+    pub fn get_version_by_name(
+        &self,
+        rule_set_slug: &str,
+        version_name: &str,
+    ) -> Result<Option<Version>> {
+        use crate::models::rule_sets::dsl as rs_dsl;
+        use crate::models::versions::dsl as v_dsl;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        let result = v_dsl::versions
+            .inner_join(rs_dsl::rule_sets)
+            .filter(rs_dsl::slug.eq(rule_set_slug))
+            .filter(v_dsl::version_name.eq(version_name))
+            .select(Version::as_select())
+            .first(&mut conn)
+            .optional()
+            .wrap_err("Failed to load version by name")?;
+
+        Ok(result)
+    }
+
     /// Get rules for a specific version, ordered by number
     pub fn get_rules_for_version(&self, version_id_param: &str) -> Result<Vec<Rule>> {
         use crate::models::rules::dsl::*;
 
-        let mut conn = self.pool.get()
+        let mut conn = self
+            .pool
+            .get()
             .wrap_err("Failed to get database connection")?;
 
         let results = rules
-            .filter(version_id.eq(version_id_param))  
+            .filter(version_id.eq(version_id_param))
             .select(Rule::as_select())
             .order(number.asc())
             .load(&mut conn)
@@ -70,10 +102,16 @@ impl RuleRepository {
     }
 
     /// Get rule by slug and version
-    pub fn get_rule_by_slug(&self, rule_slug: &str, version_id_param: &str) -> Result<Option<Rule>> {
+    pub fn get_rule_by_slug(
+        &self,
+        rule_slug: &str,
+        version_id_param: &str,
+    ) -> Result<Option<Rule>> {
         use crate::models::rules::dsl::*;
 
-        let mut conn = self.pool.get()
+        let mut conn = self
+            .pool
+            .get()
             .wrap_err("Failed to get database connection")?;
 
         let result = rules
@@ -88,10 +126,16 @@ impl RuleRepository {
     }
 
     /// Get rule content for a rule in a specific language (with fallback to English)
-    pub fn get_rule_content(&self, rule_id_param: &str, language_param: &str) -> Result<Option<RuleContent>> {
+    pub fn get_rule_content(
+        &self,
+        rule_id_param: &str,
+        language_param: &str,
+    ) -> Result<Option<RuleContent>> {
         use crate::models::rule_content::dsl::*;
 
-        let mut conn = self.pool.get()
+        let mut conn = self
+            .pool
+            .get()
             .wrap_err("Failed to get database connection")?;
 
         // Try to get content in requested language first
@@ -123,7 +167,9 @@ impl RuleRepository {
     pub fn get_child_rules(&self, parent_id: &str) -> Result<Vec<Rule>> {
         use crate::models::rules::dsl::*;
 
-        let mut conn = self.pool.get()
+        let mut conn = self
+            .pool
+            .get()
             .wrap_err("Failed to get database connection")?;
 
         let results = rules
@@ -140,7 +186,9 @@ impl RuleRepository {
     pub fn create_rule_set(&self, new_rule_set: NewRuleSet) -> Result<RuleSet> {
         use crate::models::rule_sets::dsl::*;
 
-        let mut conn = self.pool.get()
+        let mut conn = self
+            .pool
+            .get()
             .wrap_err("Failed to get database connection")?;
 
         diesel::insert_into(rule_sets)
@@ -162,7 +210,9 @@ impl RuleRepository {
     pub fn create_version(&self, new_version: NewVersion) -> Result<Version> {
         use crate::models::versions::dsl::*;
 
-        let mut conn = self.pool.get()
+        let mut conn = self
+            .pool
+            .get()
             .wrap_err("Failed to get database connection")?;
 
         diesel::insert_into(versions)
@@ -184,7 +234,9 @@ impl RuleRepository {
     pub fn create_rule(&self, new_rule: NewRule) -> Result<Rule> {
         use crate::models::rules::dsl::*;
 
-        let mut conn = self.pool.get()
+        let mut conn = self
+            .pool
+            .get()
             .wrap_err("Failed to get database connection")?;
 
         diesel::insert_into(rules)
@@ -206,7 +258,9 @@ impl RuleRepository {
     pub fn create_rule_content(&self, new_content: NewRuleContent) -> Result<RuleContent> {
         use crate::models::rule_content::dsl::*;
 
-        let mut conn = self.pool.get()
+        let mut conn = self
+            .pool
+            .get()
             .wrap_err("Failed to get database connection")?;
 
         diesel::insert_into(rule_content)

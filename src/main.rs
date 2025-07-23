@@ -5,10 +5,16 @@ use axum::{
     routing::get,
     Router,
 };
-use diesel::{r2d2::{ConnectionManager, Pool}, sql_query, sqlite::SqliteConnection, RunQueryDsl};
+use diesel::{
+    r2d2::{ConnectionManager, Pool},
+    sql_query,
+    sqlite::SqliteConnection,
+    RunQueryDsl,
+};
 use minijinja::Environment;
 use std::sync::Arc;
 
+mod handlers;
 mod models;
 mod repository;
 
@@ -82,6 +88,12 @@ async fn main() {
     let app = Router::new()
         .route("/", get(home))
         .route("/health", get(health))
+        .route("/{language}/rules", get(handlers::list_rule_sets))
+        .route("/{language}/rules/{rule_set}", get(handlers::list_rules))
+        .route(
+            "/{language}/rules/{rule_set}/{rule_slug}",
+            get(handlers::show_rule),
+        )
         .nest_service(
             "/static",
             SetResponseHeaderLayer::if_not_present(

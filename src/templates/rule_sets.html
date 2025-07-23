@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Ultimate Frisbee Rules{% endblock %}
+
+{% block content %}
+<section>
+    <h1>Ultimate Frisbee Rules</h1>
+    <p>Choose a rule set to browse:</p>
+    
+    <div class="rule-sets">
+        {% for rule_set in rule_sets %}
+        <article>
+            <h2><a href="/{{ language }}/rules/{{ rule_set.slug }}">{{ rule_set.name }}</a></h2>
+            {% if rule_set.description %}
+            <p>{{ rule_set.description }}</p>
+            {% endif %}
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

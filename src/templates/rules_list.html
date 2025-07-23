@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}{{ rule_set_name }} Rules{% endblock %}
+
+{% block content %}
+<section>
+    <nav>
+        <a href="/{{ language }}/rules">← Back to Rule Sets</a>
+    </nav>
+    
+    <h1>{{ rule_set_name }} Rules</h1>
+    <p><small>Version: {{ version_name }}</small></p>
+    
+    <div class="rules-hierarchy">
+        {{ render_rule_tree(rule_tree) }}
+    </div>
+</section>
+
+{% macro render_rule_tree(rules) %}
+<ol class="rule-list">
+    {% for rule in rules %}
+    <li class="rule-item">
+        <a href="/{{ language }}/rules/{{ rule_set_slug }}/{{ rule.slug }}" class="rule-link">
+            <span class="rule-number">{{ rule.number }}</span>
+            <span class="rule-title">{{ rule.title }}</span>
+        </a>
+        {% if rule.children %}
+        {{ render_rule_tree(rule.children) }}
+        {% endif %}
+    </li>
+    {% endfor %}
+</ol>
+{% endmacro %}
+{% endblock %}

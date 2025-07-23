@@ -58,12 +58,7 @@ diesel::joinable!(rules -> rule_sets (rule_set_id));
 diesel::joinable!(rules -> versions (version_id));
 diesel::joinable!(rule_content -> rules (rule_id));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    rule_sets,
-    versions,
-    rules,
-    rule_content,
-);
+diesel::allow_tables_to_appear_in_same_query!(rule_sets, versions, rules, rule_content,);
 
 // Queryable structs (for reading from database)
 #[derive(Queryable, Selectable, Debug, Clone)]
@@ -107,7 +102,7 @@ pub struct Rule {
 #[diesel(table_name = rule_content)]
 pub struct RuleContent {
     pub id: String,
-    pub rule_id: String, 
+    pub rule_id: String,
     pub language: String,
     pub title: Option<String>,
     pub content_markdown: String,
