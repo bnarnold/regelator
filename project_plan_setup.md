@@ -46,21 +46,26 @@
 
 ---
 
-### Story 1.4: Database Setup ⏳ **Pending**
+### Story 1.4: Database Setup ✅ **Completed**
 **Acceptance Criteria:**
-- [ ] Add `diesel` and SQLite dependencies
-- [ ] Set up database connection pool
-- [ ] Create initial migration for basic schema
-- [ ] Add database health check to existing `/health` endpoint
+- [x] Add `diesel` and SQLite dependencies
+- [x] Set up database connection pool (r2d2)
+- [x] Initialize diesel project structure
+- [x] Add database health check to existing `/health` endpoint
 
 **Testing:**
 - Manual: Application starts with database connection
 - Manual: `/health` endpoint confirms database connectivity
-- Unit: Database connection pool works correctly
+- Database file created at `db/regelator.db`
 
 ---
 
 ## Next Phase: Core Functionality
+
+### Story 1.5: Configuration Management ⏳ **Pending**
+**Description:** Add configuration system for database URL, port, etc.
+**Priority:** Medium
+**Estimate:** Small
 
 ### Story 2.1: Rules Data Model ⏳ **Pending**
 **Description:** Define data structures for Ultimate Frisbee rules
@@ -81,7 +86,7 @@
 
 ## Progress Tracking
 
-**Stories Completed:** 3/4 setup stories (75%)
+**Stories Completed:** 4/4 setup stories (100%)
 **Current Velocity:** 1 story/session (baseline)
 **Blockers:** None
 

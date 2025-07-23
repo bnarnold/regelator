@@ -157,6 +157,25 @@ This document captures technical decisions, lessons learned, and implementation 
 - Added GZip compression layer for bandwidth optimization
 - Used tower Layer trait for composing middleware
 
+### Story 1.4 - Database Setup
+**What worked well:**
+- Diesel setup was straightforward with CLI
+- R2D2 connection pooling integrates well with Axum state
+- Synchronous diesel works fine without spawn_blocking for simple queries
+- Health check provides good database connectivity verification
+
+**What to improve:**
+- Need configuration system for database URL (Story 1.5)
+
+**Technical debt:**
+- Hardcoded database path needs configuration
+
+**Key decisions:**
+- Used synchronous diesel instead of diesel-async (SQLite not supported)
+- R2D2 connection pooling for thread-safe database access
+- Database stored in `/db` folder, gitignored
+- Health endpoint performs `SELECT 1=1` query to verify connectivity
+
 ---
 
 ## Future Technical Decisions

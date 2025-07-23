@@ -5,8 +5,11 @@ use axum::{
     routing::get,
     Router,
 };
+use diesel::{r2d2::{ConnectionManager, Pool}, sql_query, sqlite::SqliteConnection, RunQueryDsl};
 use minijinja::Environment;
 use std::sync::Arc;
+
+type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 use tower::Layer;
 use tower_http::{
     compression::CompressionLayer, services::ServeDir, set_header::SetResponseHeaderLayer,
@@ -15,16 +18,23 @@ use tower_http::{
 #[derive(Clone)]
 struct AppState {
     templates: Arc<Environment<'static>>,
+    db: DbPool,
 }
 
 impl AppState {
-    fn new() -> Self {
+    fn new() -> Result<Self, eyre::Error> {
         let mut env = Environment::new();
         env.set_loader(minijinja::path_loader("src/templates"));
 
-        AppState {
+        // TODO: Read from configuration in future story
+        let database_url = "db/regelator.db";
+        let manager = ConnectionManager::<SqliteConnection>::new(database_url);
+        let pool = Pool::builder().build(manager)?;
+
+        Ok(AppState {
             templates: Arc::new(env),
-        }
+            db: pool,
+        })
     }
 }
 
@@ -52,13 +62,19 @@ async fn home(State(state): State<AppState>) -> Result<Html<String>, AppError> {
     Ok(Html(rendered))
 }
 
+async fn health(State(state): State<AppState>) -> Result<&'static str, AppError> {
+    let mut conn = state.db.get()?;
+    sql_query("SELECT 1=1").execute(&mut conn)?;
+    Ok("OK")
+}
+
 #[tokio::main]
 async fn main() {
-    let state = AppState::new();
+    let state = AppState::new().expect("Failed to initialize application state");
 
     let app = Router::new()
         .route("/", get(home))
-        .route("/health", get(|| async { "OK" }))
+        .route("/health", get(health))
         .nest_service(
             "/static",
             SetResponseHeaderLayer::if_not_present(

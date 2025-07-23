@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 axum = "0.8.4"
+diesel = { version = "2.2.12", features = ["r2d2", "sqlite"] }
 eyre = "0.6.12"
 minijinja = { version = "2.11.0", features = ["loader"] }
 tokio = { version = "1.46.1", features = ["full"] }
