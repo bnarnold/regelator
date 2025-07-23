@@ -2,20 +2,6 @@
 
 {% block title %}{{ rule_set_name }} Rules{% endblock %}
 
-{% block content %}
-<section>
-    <nav>
-        <a href="/{{ language }}/rules">← Back to Rule Sets</a>
-    </nav>
-    
-    <h1>{{ rule_set_name }} Rules</h1>
-    <p><small>Version: {{ version_name }}</small></p>
-    
-    <div class="rules-hierarchy">
-        {{ render_rule_tree(rule_tree) }}
-    </div>
-</section>
-
 {% macro render_rule_tree(rules) %}
 <ol class="rule-list">
     {% for rule in rules %}
@@ -31,4 +17,18 @@
     {% endfor %}
 </ol>
 {% endmacro %}
+
+{% block content %}
+<section>
+    <nav>
+        <a href="/{{ language }}/rules">← Back to Rule Sets</a>
+    </nav>
+    
+    <h1>{{ rule_set_name }} Rules</h1>
+    <p><small>Version: {{ version_name }}</small></p>
+    
+    <div class="rules-hierarchy">
+        {{ render_rule_tree(rule_tree) }}
+    </div>
+</section>
 {% endblock %}

@@ -2,6 +2,7 @@
 name = "regelator"
 version = "0.1.0"
 edition = "2021"
+default-run = "regelator"
 
 [dependencies]
 axum = { version = "0.8.4", features = ["macros"] }
@@ -13,5 +14,9 @@ regex = "1.11.1"
 serde = { version = "1.0.219", features = ["derive"] }
 tokio = { version = "1.46.1", features = ["full"] }
 tower = "0.5.2"
-tower-http = { version = "0.6.6", features = ["compression-gzip", "fs", "set-header"] }
+tower-http = { version = "0.6.6", features = [
+  "compression-gzip",
+  "fs",
+  "set-header",
+] }
 uuid = { version = "1.17.0", features = ["v7"] }
