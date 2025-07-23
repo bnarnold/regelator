@@ -69,12 +69,6 @@ where
     }
 }
 
-async fn home(State(state): State<AppState>) -> Result<Html<String>, AppError> {
-    let tmpl = state.templates.get_template("home.html")?;
-    let rendered = tmpl.render(())?;
-    Ok(Html(rendered))
-}
-
 async fn health(State(state): State<AppState>) -> Result<&'static str, AppError> {
     let mut conn = state.db.get()?;
     sql_query("SELECT 1=1").execute(&mut conn)?;
@@ -86,7 +80,10 @@ async fn main() {
     let state = AppState::new().expect("Failed to initialize application state");
 
     let app = Router::new()
-        .route("/", get(home))
+        .route(
+            "/",
+            get(|| async { axum::response::Redirect::to("/en/rules") }),
+        )
         .route("/health", get(health))
         .route("/{language}/rules", get(handlers::list_rule_sets))
         .route("/{language}/rules/{rule_set}", get(handlers::list_rules))
