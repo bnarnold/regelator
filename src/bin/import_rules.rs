@@ -12,21 +12,10 @@ use regelator::repository::RuleRepository;
 #[derive(Debug)]
 struct RuleData {
     number: String,
-    title: String,
+    slug: String,
     content: String,
 }
 
-fn create_slug_from_title(title: &str) -> String {
-    title
-        .to_lowercase()
-        .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '-' })
-        .collect::<String>()
-        .split('-')
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>()
-        .join("-")
-}
 
 fn parse_rule_number(number: &str) -> Vec<u32> {
     number.split('.').map(|s| s.parse().unwrap_or(0)).collect()
@@ -51,46 +40,28 @@ fn find_parent_rule(rules: &HashMap<String, String>, current_number: &str) -> Op
 
 fn read_rules_from_stdin() -> Result<Vec<RuleData>> {
     let stdin = io::stdin();
-    let rule_pattern = Regex::new(r"^((?:\d+\.)+)").unwrap();
+    let rule_pattern = Regex::new(r"^((?:\d+\.)+)\s+(\S+)\s+(.+)$").unwrap();
     let mut rules = Vec::new();
-    let mut current_rule: Option<RuleData> = None;
 
     for line in stdin.lock().lines() {
         let line = line?;
         let line = line.trim();
 
         if rule_pattern.is_match(line) {
-            // Save previous rule if exists
-            if let Some(rule) = current_rule.take() {
-                rules.push(rule);
-            }
-
-            // Extract rule number and title
+            // Extract rule number, slug, and content
             if let Some(caps) = rule_pattern.captures(line) {
                 let number_with_dot = caps.get(1).unwrap().as_str();
                 let number = number_with_dot.trim_end_matches('.').to_string();
-                let title = line[caps.get(0).unwrap().end()..].trim().to_string();
+                let slug = caps.get(2).unwrap().as_str().to_string();
+                let content = caps.get(3).unwrap().as_str().to_string();
 
-                current_rule = Some(RuleData {
+                rules.push(RuleData {
                     number,
-                    title,
-                    content: String::new(),
+                    slug,
+                    content,
                 });
             }
-        } else if !line.is_empty() {
-            // Add content line to current rule
-            if let Some(ref mut rule) = current_rule {
-                if !rule.content.is_empty() {
-                    rule.content.push('\n');
-                }
-                rule.content.push_str(line);
-            }
         }
-    }
-
-    // Don't forget the last rule
-    if let Some(rule) = current_rule.take() {
-        rules.push(rule);
     }
 
     Ok(rules)
@@ -152,21 +123,20 @@ fn import_rules(rule_data: Vec<RuleData>) -> Result<()> {
     // Create rules
     for rule_data in sorted_rules {
         let rule_id = Uuid::now_v7().to_string();
-        let slug = create_slug_from_title(&rule_data.title);
 
         // Find parent rule ID
         let parent_rule_id = find_parent_rule(&rule_ids, &rule_data.number);
 
         let rule = NewRule {
             id: rule_id.clone(),
-            slug: slug.clone(),
+            slug: rule_data.slug.clone(),
             rule_set_id: rule_set_id.clone(),
             version_id: version_id.clone(),
             parent_rule_id,
             number: rule_data.number.clone(),
         };
 
-        println!("Creating rule {}: {}", rule_data.number, rule_data.title);
+        println!("Creating rule {} ({}): {}", rule_data.number, rule_data.slug, rule_data.content);
         repo.create_rule(rule)?;
 
         // Store rule ID for parent lookup
@@ -178,7 +148,7 @@ fn import_rules(rule_data: Vec<RuleData>) -> Result<()> {
             id: content_id,
             rule_id: rule_id.clone(),
             language: "en".to_string(),
-            title: Some(rule_data.title),
+            title: None,
             content_markdown: rule_data.content,
             source_content_id: None,
         };

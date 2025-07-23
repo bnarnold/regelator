@@ -32,12 +32,31 @@ The underlying rules document, and all applications, should be localized, with a
 
 ## Development Commands
 
-- Run the application with `cargo run`
+- Run the web application with `cargo run`
+- Import rules data with `cargo run --bin import_rules < rules_file.txt`
 - Test the application with `cargo test`
 - Install crates with `cargo add` (the lock file is `Cargo.lock`)
 - Build and check for compilation errors with `cargo build`
 - Format code with `cargo fmt`
 - Lint code with `cargo clippy`
+
+## Data Import
+
+The import script (`cargo run --bin import_rules`) reads rule data from stdin and expects:
+
+- Each line contains: rule number (ending with dot), slug, and content
+- Rule numbers in format like `1.`, `1.2.`, `1.2.3.`
+- Slug used for URL generation (e.g., `calling-hand-signals`)
+- Content is everything after the slug on the same line
+- Automatic hierarchy detection from rule numbers (1.2.1 is child of 1.2)
+- Numeric sorting (so 1.2.10 comes after 1.2.9, not 1.2.2)
+
+Example format:
+```
+1. spirit-of-the-game Ultimate stresses fair play and sportsmanship.
+1.1. self-refereeing Players are responsible for their own foul calls.
+15.13. calling-hand-signals Players are encouraged to use the WFDF Hand Signals to communicate all calls.
+```
 
 ## Technology stack
 
