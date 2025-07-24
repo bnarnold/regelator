@@ -136,6 +136,36 @@ This document outlines our pair programming workflow for building the Regelator 
 - Write clear, self-documenting code
 - Keep functions small and focused
 
+## Task Allocation Guidelines
+
+### Tasks Best Suited for Claude
+- **Code implementation**: Repository methods, handlers, template updates
+- **Technical fixes**: Borrow checker errors, compilation issues, test updates
+- **Code analysis**: Reading existing code structure, following established patterns
+- **Testing and verification**: Running tests, checking builds, executing commands
+- **Following specifications**: Implementing well-defined technical requirements
+
+### Tasks Best Suited for Human
+- **Strategic decisions**: Document organization, project structure, scope decisions
+- **Content creation**: Planning documents, high-level architecture decisions
+- **Quality judgment**: When to stop iterating, what level of detail is appropriate
+- **Complex problem breakdown**: Deciding the right level of abstraction
+- **Editorial decisions**: Document tone, structure, what information belongs where
+
+### When Claude Should Hand Off to Human
+
+**Claude should stop making edit suggestions and instead prompt human to edit when:**
+- Iterating multiple times on the same document structure
+- Making strategic decisions about content organization
+- Writing planning documents that require judgment about scope
+- Organizing information that needs human editorial perspective
+- When the human has rejected similar edit suggestions multiple times
+
+**Handoff phrases Claude should use:**
+- "This seems like a strategic decision - would you like to organize this content yourself?"
+- "I've suggested a few approaches, but this might be better suited for your editorial judgment"
+- "Rather than continue iterating, would you prefer to structure this document yourself?"
+
 ## Communication Patterns
 
 ### Starting a Story
