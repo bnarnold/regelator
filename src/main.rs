@@ -19,6 +19,7 @@ use std::sync::Arc;
 mod handlers;
 mod models;
 mod repository;
+mod schema;
 
 use repository::RuleRepository;
 
@@ -107,6 +108,10 @@ async fn main() {
         .route("/health", get(health))
         .route("/{language}/rules", get(handlers::list_rule_sets))
         .route("/{language}/rules/{rule_set}", get(handlers::list_rules))
+        .route(
+            "/{language}/rules/{rule_set}/definitions",
+            get(handlers::definitions_page),
+        )
         .route(
             "/{language}/rules/{rule_set}/{rule_slug}",
             get(handlers::show_rule),

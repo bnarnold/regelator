@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Definitions - {{ rule_set_name }}{% endblock %}
+
+{% block content %}
+<header>
+    <nav>
+        <a href="/en/rules/{{ rule_set_slug }}" role="button" class="secondary outline">← Back to {{ rule_set_name }}</a>
+    </nav>
+    <h1>Definitions</h1>
+    <p>{{ rule_set_name }} - {{ version_name }}</p>
+</header>
+
+<main>
+    {% if definitions %}
+        <div class="definitions-list">
+            {% for definition in definitions %}
+                <article id="{{ definition.slug }}" class="definition-item">
+                    <h2>{{ definition.term }}</h2>
+                    <div class="definition-content">
+                        {{ definition.definition_html | markdown | safe }}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No definitions available for this rule set.</p>
+    {% endif %}
+</main>
+
+<style>
+    .definitions-list {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .definition-item {
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--pico-muted-border-color);
+    }
+    
+    .definition-item:last-child {
+        border-bottom: none;
+    }
+    
+    .definition-item h2 {
+        color: var(--pico-primary);
+        margin-bottom: 0.5rem;
+        font-size: 1.25rem;
+    }
+    
+    .definition-content {
+        color: var(--pico-color);
+        line-height: 1.6;
+    }
+    
+    .definition-content p {
+        margin-bottom: 0.75rem;
+    }
+    
+    .definition-content p:last-child {
+        margin-bottom: 0;
+    }
+</style>
+{% endblock %}

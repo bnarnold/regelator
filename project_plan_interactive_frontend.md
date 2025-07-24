@@ -235,6 +235,129 @@ New:     "according to [Section 1](#spirit-of-game)"
 - Cleaner, more maintainable codebase
 - Documentation now accurately reflects implementation
 
+### Story 2.1: Definitions Support & Integration ✅
+**Goal:** Add definitions/glossary terms with basic infrastructure and navigation
+
+**Acceptance Criteria:**
+- [x] Create database migration for glossary_terms and glossary_content tables
+- [x] Add Diesel models and schema for glossary functionality
+- [x] Extend import script to process definitions in format: `TERM: definition text`
+- [x] Create glossary repository methods (create, find_by_slug, list_all)
+- [x] Add definitions page handler and template at `/en/rules/{rule_set}/definitions`
+- [x] Add bidirectional navigation between rules overview and definitions page
+- [x] Support multi-line definitions with proper markdown paragraph breaks
+- [x] Handle complex terms like "Out-of-bounds (OB)" with updated regex pattern
+- [x] Test with example: "Affect the play: A breach or call affects the play if..."
+
+**Technical Implementation Plan:**
+
+1. **Database Setup**:
+   - Migration: Create `glossary_terms` and `glossary_content` tables per schema.md design
+   - Models: Add `GlossaryTerm`, `GlossaryContent`, `NewGlossaryTerm`, `NewGlossaryContent` structs
+   - Schema: Add table definitions and relationships to Diesel schema
+
+2. **Import Script Enhancement**:
+   - Extend `import_rules.rs` to recognize definition format: `TERM: definition content`
+   - Generate slugs from terms (e.g., "Affect the play" → "affect-the-play")
+   - Store in glossary_terms with term_key and glossary_content with definition markdown
+   - Process after rules import, similar to cross-reference processing
+
+3. **Repository Layer**:
+   - Add `GlossaryRepository` trait with methods: `create_term`, `find_by_slug`, `list_for_rule_set`
+   - Implement database queries for term lookup and listing
+   - Include content joining for display
+
+4. **Web Interface**:
+   - Add `/en/rules/{rule_set}/definitions` route and handler
+   - Create `definitions.html` template showing alphabetical term list
+   - Add "Definitions" link to navigation in base template
+   - Style definitions with clear term/definition separation
+
+5. **Automatic Term Linking**:
+   - Extend markdown filter or add separate filter to detect glossary terms in content
+   - Replace term mentions with links: `[affect the play](/en/rules/wfdf-ultimate/definitions#affect-the-play)`
+   - Add anchor IDs to definition terms for direct linking
+   - Preserve case and context of original term usage
+
+**Benefits:**
+- Users can quickly reference complex Ultimate terminology
+- Automatic linking improves rule comprehension
+- Foundation for future features (definition search, term highlighting)
+- Maintains existing architectural patterns
+
+**Example Usage:**
+```
+Import format: "Affect the play: A breach or call affects the play if it is reasonable to assume..."
+Rule content: "If the foul affected the play, the disc returns to the thrower."
+Rendered: "If the foul [affected the play](/en/rules/wfdf-ultimate/definitions#affect-the-play), the disc returns to the thrower."
+```
+
+**Technical Implementation Completed:**
+
+1. **Database Migration & Models**:
+   - Created `glossary_terms` and `glossary_content` tables with proper foreign keys
+   - Added Diesel models with UUID primary keys and proper relationships
+   - Fixed nullable primary key issues during schema design
+
+2. **Import Script Enhancement (`src/bin/import_definitions.rs`)**:
+   - Updated regex from `^[A-Z][a-zA-Z ]*:` to `^([^.:]+?):` to handle complex terms
+   - Preserved empty lines for proper markdown paragraph breaks
+   - Added comprehensive tests for single-line, multi-line, and complex term formats
+   - Generates URL-friendly slugs automatically from term names
+
+3. **Repository Methods**:
+   - `create_glossary_term()` and `create_glossary_content()` for data creation
+   - `get_glossary_terms()` for retrieving terms with content joined
+   - `find_glossary_term_by_slug()` for individual term lookup
+
+4. **Web Interface**:
+   - Definitions page handler at `/{language}/rules/{rule_set}/definitions`
+   - Clean template with alphabetical term sorting and markdown rendering
+   - Bidirectional navigation: overview ↔ definitions with Pico CSS styling
+
+5. **Navigation Integration**:
+   - "📖 Definitions" button on rules overview page
+   - "← Back to [Rule Set]" button on definitions page
+   - Consistent navigation patterns across the application
+
+**Benefits Realized:**
+- Foundation for 37+ Ultimate Frisbee terms with proper paragraph formatting
+- Scalable architecture ready for automatic term linking (Story 2.2)
+- Clean separation between rule content and terminology
+- User-friendly navigation between rules and definitions
+
+**Key Lessons Learned:**
+- Import script regex patterns need real-world testing (complex terms like "Out-of-bounds (OB)")
+- Empty line handling critical for markdown paragraph formatting
+- Bidirectional navigation improves user experience significantly
+- Repository pattern scales well for new entity types
+- Pico CSS provides sufficient styling without custom CSS
+
+### Story 2.2: Automatic Term Linking in Rule Content 🎯
+**Goal:** Automatically detect and link glossary terms when they appear in rule content
+
+**Acceptance Criteria:**
+- [ ] Create term detection system that identifies glossary terms in rule content
+- [ ] Implement case-insensitive matching (e.g., "affect the play" matches "Affect the play")  
+- [ ] Generate links to definitions page with anchors (e.g., `#affect-the-play`)
+- [ ] Preserve original text formatting and case in rule display
+- [ ] Handle partial matches and avoid false positives
+- [ ] Process term linking during rule content rendering
+- [ ] Test with real rule content containing multiple terms
+- [ ] Ensure performance is acceptable with full glossary
+
+**Technical Implementation Plan:**
+- Extend existing `process_slug_references` function or create new term linking system
+- Build glossary term index for efficient lookup during rendering  
+- Use word boundary detection to avoid partial matches
+- Consider longest-first matching to handle overlapping terms
+- Add links that open definitions page scrolled to specific term
+
+**Benefits:**
+- Users can quickly access definitions while reading rules
+- Improves rule comprehension by providing contextual help
+- Creates natural discovery of related terminology
+
 ### Story 3: Interactive Rule Navigation with HTMX 🎯
 **Goal:** Add smooth, interactive navigation between rules without full page reloads
 

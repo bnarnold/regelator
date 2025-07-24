@@ -597,3 +597,66 @@ mod tests {
     }
 
 }
+
+/// Data structure for passing glossary terms to templates
+#[derive(Serialize)]
+struct DefinitionItem {
+    term: String,
+    slug: String,
+    definition_html: String,
+}
+
+#[derive(Serialize)]
+struct DefinitionsPageData {
+    rule_set_name: String,
+    rule_set_slug: String,
+    version_name: String,
+    definitions: Vec<DefinitionItem>,
+}
+
+/// Handler for displaying definitions/glossary page
+pub async fn definitions_page(
+    Path((language, rule_set_slug)): Path<(String, String)>,
+    State(repository): State<RuleRepository>,
+    State(template_env): State<Arc<Environment<'static>>>,
+) -> Result<Html<String>, AppError> {
+    // Get rule set info for display
+    let rule_sets = repository.get_rule_sets()?;
+    let rule_set = rule_sets
+        .iter()
+        .find(|rs| rs.slug == rule_set_slug)
+        .ok_or_else(|| eyre::eyre!("Rule set '{}' not found", rule_set_slug))?;
+
+    // Get the current version for this rule set
+    let version = repository
+        .get_current_version(&rule_set_slug)?
+        .ok_or_else(|| eyre::eyre!("No current version found"))?;
+
+    // Get all glossary terms for this rule set and version
+    let glossary_terms = repository.get_glossary_terms(&rule_set.id, &version.id)?;
+
+    // Convert to template data, sorting alphabetically by term
+    let mut definitions: Vec<DefinitionItem> = glossary_terms
+        .into_iter()
+        .map(|(term, content)| DefinitionItem {
+            term: content.term.clone(),
+            slug: term.slug.clone(),
+            definition_html: content.definition_markdown.clone(), // Will be processed by markdown filter
+        })
+        .collect();
+
+    // Sort alphabetically by term (case-insensitive)
+    definitions.sort_by(|a, b| a.term.to_lowercase().cmp(&b.term.to_lowercase()));
+
+    let template_data = DefinitionsPageData {
+        rule_set_name: rule_set.name.clone(),
+        rule_set_slug: rule_set.slug.clone(),
+        version_name: version.version_name.clone(),
+        definitions,
+    };
+
+    let template = template_env.get_template("definitions.html")?;
+    let response = template.render(&template_data)?;
+
+    Ok(Html(response))
+}
