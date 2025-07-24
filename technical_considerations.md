@@ -214,6 +214,25 @@ This document captures technical decisions, lessons learned, and implementation 
 - Rule numbers preserve full page navigation to detail views
 - Anchor IDs use rule slugs for consistency and readability
 
+### Story 2 - Title Field Cleanup & Display Simplification
+**What worked well:**
+- Database migration executed cleanly with automatic schema.rs updates
+- Diesel's generated schema kept models in sync automatically
+- Templates were already perfect - no display changes needed
+- All tests continued passing after field removal
+
+**What to improve:**
+- Could have caught this unused field earlier with better code reviews
+
+**Technical debt:**
+- Eliminated: Unused database column and model fields
+
+**Key decisions:**
+- Removed `title` field entirely rather than keeping it optional
+- Updated documentation to match actual implementation
+- Focused on simplification over feature addition
+- Discovered that sometimes the best enhancement is removing complexity
+
 ---
 
 ## Future Technical Decisions
