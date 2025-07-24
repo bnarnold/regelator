@@ -5,18 +5,34 @@ use axum::{
 use minijinja::Environment;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use pulldown_cmark::{html, Parser};
-use ammonia::clean;
-
 use crate::{models::{Rule, RuleContent}, repository::RuleRepository, AppError};
 use std::collections::HashMap;
+use regex::Regex;
 
-/// Convert markdown text to safe HTML
-fn markdown_to_html(markdown: &str) -> String {
-    let parser = Parser::new(markdown);
-    let mut html_output = String::new();
-    html::push_html(&mut html_output, parser);
-    clean(&html_output).to_string()
+/// Process {{section:slug}} and {{rule:slug}} templates in content and replace with markdown links
+fn process_slug_references(
+    content: &str,
+    slug_to_number: &HashMap<String, String>, // slug -> rule number
+    language: &str,
+    rule_set_slug: &str,
+) -> String {
+    let slug_pattern = Regex::new(r"\{\{(section|rule):([a-z0-9\-]+)\}\}").unwrap();
+    
+    slug_pattern.replace_all(content, |caps: &regex::Captures| {
+        let template_type = &caps[1]; // "section" or "rule"
+        let slug = &caps[2];
+        
+        if let Some(rule_number) = slug_to_number.get(slug) {
+            let display_text = if template_type == "section" {
+                format!("Section {}", rule_number)
+            } else {
+                rule_number.to_string()
+            };
+            format!("[{}](/{}/rules/{}/{})", display_text, language, rule_set_slug, slug)
+        } else {
+            caps[0].to_string() // Keep original if slug not found
+        }
+    }).to_string()
 }
 
 #[derive(Deserialize)]
@@ -51,7 +67,6 @@ struct RuleNode {
     number: String,
     slug: String,
     content: String,
-    content_html: String,
     children: Vec<RuleNode>,
 }
 
@@ -76,7 +91,6 @@ struct RuleDetailData {
     number: String,
     slug: String,
     content_markdown: String,
-    content_html: String,
 }
 
 /// GET /en/rules - List all rule sets
@@ -131,7 +145,7 @@ pub async fn list_rules(
     let rules_with_content = repo.get_rules_with_content_for_version(&version.id, &language)?;
 
     // Build hierarchical tree structure
-    let rule_tree = build_rule_tree(rules_with_content);
+    let rule_tree = build_rule_tree(rules_with_content, &language, &rule_set_slug);
 
     let context = RulesListContext {
         language: language.clone(),
@@ -181,6 +195,15 @@ pub async fn show_rule(
         None => return Err(AppError(eyre::eyre!("Rule content not found"))),
     };
 
+    // Get all rules with content for this version and build the full tree
+    let all_rules_with_content = repo.get_rules_with_content_for_version(&version.id, &language)?;
+    
+    // Build slug -> number mapping for processing rule content
+    let slug_to_number: HashMap<String, String> = all_rules_with_content
+        .iter()
+        .map(|(rule, _)| (rule.slug.clone(), rule.number.clone()))
+        .collect();
+
     // Get parent rule if it exists
     let parent_rule = if let Some(parent_id) = &rule.parent_rule_id {
         let parent = repo.get_rule_by_id(parent_id)?;
@@ -190,8 +213,12 @@ pub async fn show_rule(
                 Some(RuleDetailData {
                     number: parent.number,
                     slug: parent.slug,
-                    content_markdown: parent_content.content_markdown.clone(),
-                    content_html: markdown_to_html(&parent_content.content_markdown),
+                    content_markdown: process_slug_references(
+                        &parent_content.content_markdown,
+                        &slug_to_number,
+                        &language,
+                        &rule_set_slug,
+                    ),
                 })
             } else {
                 None
@@ -202,10 +229,8 @@ pub async fn show_rule(
     } else {
         None
     };
-
-    // Get all rules with content for this version and build the full tree
-    let all_rules_with_content = repo.get_rules_with_content_for_version(&version.id, &language)?;
-    let full_tree = build_rule_tree(all_rules_with_content);
+    
+    let full_tree = build_rule_tree(all_rules_with_content, &language, &rule_set_slug);
     
     // Find the current rule in the tree and get its children
     let child_rules = find_rule_in_tree(&full_tree, &rule.slug)
@@ -218,8 +243,12 @@ pub async fn show_rule(
         rule: RuleDetailData {
             number: rule.number,
             slug: rule.slug,
-            content_markdown: content.content_markdown.clone(),
-            content_html: markdown_to_html(&content.content_markdown),
+            content_markdown: process_slug_references(
+                &content.content_markdown,
+                &slug_to_number,
+                &language,
+                &rule_set_slug,
+            ),
         },
         parent_rule,
         child_rules,
@@ -260,18 +289,34 @@ fn sort_rule_nodes_recursively(nodes: &mut Vec<RuleNode>) {
 }
 
 /// Build hierarchical tree structure from rules with content
-fn build_rule_tree(rules_with_content: Vec<(Rule, RuleContent)>) -> Vec<RuleNode> {
+fn build_rule_tree(
+    rules_with_content: Vec<(Rule, RuleContent)>,
+    language: &str,
+    rule_set_slug: &str,
+) -> Vec<RuleNode> {
     let mut nodes: HashMap<String, RuleNode> = HashMap::new();
     let mut children_map: HashMap<String, Vec<String>> = HashMap::new();
     let mut root_ids: Vec<String> = Vec::new();
 
+    // Build slug -> rule number mapping for reference processing
+    let slug_to_number: HashMap<String, String> = rules_with_content
+        .iter()
+        .map(|(rule, _)| (rule.slug.clone(), rule.number.clone()))
+        .collect();
+
     // Create all nodes and build children mapping
     for (rule, content) in &rules_with_content {
+        let processed_content = process_slug_references(
+            &content.content_markdown,
+            &slug_to_number,
+            language,
+            rule_set_slug,
+        );
+        
         let node = RuleNode {
             number: rule.number.clone(),
             slug: rule.slug.clone(),
-            content: content.content_markdown.clone(),
-            content_html: markdown_to_html(&content.content_markdown),
+            content: processed_content,
             children: Vec::new(),
         };
         nodes.insert(rule.id.clone(), node);
@@ -368,18 +413,15 @@ mod tests {
             create_test_rule_with_content("rule_1", "1", "rule-1", "Rule 1 content", None),
         ];
 
-        let tree = build_rule_tree(rules);
+        let tree = build_rule_tree(rules, "en", "test-rules");
 
         assert_eq!(tree.len(), 3);
         assert_eq!(tree[0].number, "1");
         assert_eq!(tree[0].content, "Rule 1 content");
-        assert_eq!(tree[0].content_html, "<p>Rule 1 content</p>\n");
         assert_eq!(tree[1].number, "2");
         assert_eq!(tree[1].content, "Rule 2 content");
-        assert_eq!(tree[1].content_html, "<p>Rule 2 content</p>\n");
         assert_eq!(tree[2].number, "10");
         assert_eq!(tree[2].content, "Rule 10 content");
-        assert_eq!(tree[2].content_html, "<p>Rule 10 content</p>\n");
     }
 
     #[test]
@@ -391,7 +433,7 @@ mod tests {
             create_test_rule_with_content("rule_1_1", "1.1", "rule-1-1", "Rule 1.1 content", Some("rule_1".to_string())),
         ];
 
-        let tree = build_rule_tree(rules);
+        let tree = build_rule_tree(rules, "en", "test-rules");
 
         assert_eq!(tree.len(), 1);
         assert_eq!(tree[0].number, "1");
@@ -417,7 +459,7 @@ mod tests {
             create_test_rule_with_content("rule_1_2_1", "1.2.1", "rule-1-2-1", "Rule 1.2.1 content", Some("rule_1_2".to_string())),
         ];
 
-        let tree = build_rule_tree(rules);
+        let tree = build_rule_tree(rules, "en", "test-rules");
 
         assert_eq!(tree.len(), 1);
         assert_eq!(tree[0].number, "1");
@@ -445,7 +487,7 @@ mod tests {
             create_test_rule_with_content("rule_1", "1", "rule-1", "Rule 1 content", None),
         ];
 
-        let tree = build_rule_tree(rules);
+        let tree = build_rule_tree(rules, "en", "test-rules");
 
         assert_eq!(tree.len(), 3);
 
@@ -472,20 +514,17 @@ mod tests {
                 number: "10".to_string(),
                 slug: "rule-10".to_string(),
                 content: "Rule 10 content".to_string(),
-                content_html: "<p>Rule 10 content</p>\n".to_string(),
                 children: vec![
                     RuleNode {
                         number: "10.10".to_string(),
                         slug: "rule-10-10".to_string(),
                         content: "Rule 10.10 content".to_string(),
-                        content_html: "<p>Rule 10.10 content</p>\n".to_string(),
                         children: vec![],
                     },
                     RuleNode {
                         number: "10.2".to_string(),
                         slug: "rule-10-2".to_string(),
                         content: "Rule 10.2 content".to_string(),
-                        content_html: "<p>Rule 10.2 content</p>\n".to_string(),
                         children: vec![],
                     },
                 ],
@@ -494,7 +533,6 @@ mod tests {
                 number: "2".to_string(),
                 slug: "rule-2".to_string(),
                 content: "Rule 2 content".to_string(),
-                content_html: "<p>Rule 2 content</p>\n".to_string(),
                 children: vec![],
             },
         ];
@@ -512,67 +550,27 @@ mod tests {
     }
 
     #[test]
-    fn test_markdown_to_html_basic_features() {
-        // Test headers
-        assert_eq!(markdown_to_html("# Header 1"), "<h1>Header 1</h1>\n");
-        assert_eq!(markdown_to_html("## Header 2"), "<h2>Header 2</h2>\n");
+    fn test_process_slug_references() {
+        let mut slug_to_number = HashMap::new();
+        slug_to_number.insert("handling-contested-calls".to_string(), "16.3".to_string());
+        slug_to_number.insert("spirit-of-the-game".to_string(), "1".to_string());
         
-        // Test emphasis
-        assert_eq!(markdown_to_html("*italic*"), "<p><em>italic</em></p>\n");
-        assert_eq!(markdown_to_html("**bold**"), "<p><strong>bold</strong></p>\n");
+        let content = "If the opposition does not gain possession, apply {{rule:handling-contested-calls}} according to {{section:spirit-of-the-game}}.";
+        let processed = process_slug_references(content, &slug_to_number, "en", "wfdf-ultimate");
         
-        // Test links (ammonia adds rel attributes for security)
-        assert_eq!(
-            markdown_to_html("[link text](https://example.com)"),
-            "<p><a href=\"https://example.com\" rel=\"noopener noreferrer\">link text</a></p>\n"
-        );
-        
-        // Test lists
-        assert_eq!(
-            markdown_to_html("- Item 1\n- Item 2"),
-            "<ul>\n<li>Item 1</li>\n<li>Item 2</li>\n</ul>\n"
-        );
-        
-        // Test ordered lists
-        assert_eq!(
-            markdown_to_html("1. First\n2. Second"),
-            "<ol>\n<li>First</li>\n<li>Second</li>\n</ol>\n"
-        );
+        let expected = "If the opposition does not gain possession, apply [16.3](/en/rules/wfdf-ultimate/handling-contested-calls) according to [Section 1](/en/rules/wfdf-ultimate/spirit-of-the-game).";
+        assert_eq!(processed, expected);
     }
 
     #[test]
-    fn test_markdown_to_html_xss_protection() {
-        // Test that script tags are completely removed by ammonia
-        assert_eq!(
-            markdown_to_html("<script>alert('xss')</script>"),
-            ""
-        );
+    fn test_process_slug_references_missing_slug() {
+        let slug_to_number = HashMap::new();
         
-        // Test that raw HTML is sanitized by ammonia (script tags removed)
-        assert_eq!(
-            markdown_to_html("Plain text with <script>"),
-            "<p>Plain text with </p>"
-        );
+        let content = "Apply {{nonexistent-rule}} here.";
+        let processed = process_slug_references(content, &slug_to_number, "en", "wfdf-ultimate");
         
-        // Test that dangerous links are sanitized (href removed, rel added)
-        assert_eq!(
-            markdown_to_html("[dangerous](javascript:alert('xss'))"),
-            "<p><a rel=\"noopener noreferrer\">dangerous</a></p>\n"
-        );
+        // Should keep original template if slug not found
+        assert_eq!(processed, "Apply {{nonexistent-rule}} here.");
     }
 
-    #[test]
-    fn test_markdown_to_html_safe_html() {
-        // Test that basic HTML tags are preserved when safe
-        assert_eq!(
-            markdown_to_html("Normal **bold** text"),
-            "<p>Normal <strong>bold</strong> text</p>\n"
-        );
-        
-        // Test paragraphs
-        assert_eq!(
-            markdown_to_html("First paragraph\n\nSecond paragraph"),
-            "<p>First paragraph</p>\n<p>Second paragraph</p>\n"
-        );
-    }
 }

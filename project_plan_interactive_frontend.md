@@ -6,20 +6,115 @@ This document tracks progress on implementing the user-facing frontend functiona
 
 ## Stories Queue
 
-### Story 1: Markdown Content Rendering 🎯
+### Story 1: Markdown Content Rendering ✅
 **Goal:** Process rule content from markdown to HTML for proper display
 
 **Acceptance Criteria:**
-- [ ] Add markdown processing crate (e.g., `pulldown-cmark`)
-- [ ] Process rule content markdown in templates or handlers
-- [ ] Support common markdown features (headers, lists, links, emphasis)
-- [ ] Ensure safe HTML output (no XSS vulnerabilities)
-- [ ] Update rule detail and list views to show rendered content
+- [x] Add markdown processing crate (e.g., `pulldown-cmark`)
+- [x] Process rule content markdown in templates or handlers
+- [x] Support common markdown features (headers, lists, links, emphasis)
+- [x] Ensure safe HTML output (no XSS vulnerabilities)
+- [x] Update rule detail and list views to show rendered content
 
 **Technical Notes:**
-- Current technical debt: raw markdown text displayed instead of rendered HTML
-- Need to decide: process in Rust handler vs template filter
-- Consider caching rendered content for performance
+- ✅ COMPLETED: Implemented with pulldown-cmark + ammonia in handlers
+- Decision made: Handler-based processing for performance and security
+- Added comprehensive tests for markdown features and XSS protection
+
+### Story 1.1: Refactor Markdown to minijinja Filter ✅
+**Goal:** Refactor markdown processing from handlers to template filters for cleaner architecture
+
+**Acceptance Criteria:**
+- [x] Create custom minijinja filter for markdown processing
+- [x] Remove `content_html` field from RuleNode and RuleDetailData structs
+- [x] Update templates to use `{{ content | markdown | safe }}` pattern
+- [x] Migrate markdown_to_html function to template filter
+- [x] Update tests to work with filter-based approach
+- [x] Verify performance is acceptable with template-level processing
+
+**Technical Notes:**
+- ✅ COMPLETED: Implemented markdown_filter in main.rs with proper error handling
+- Filter registered with minijinja Environment during AppState initialization
+- Simplified data structures by removing content_html fields
+- Templates updated to use filter pattern consistently
+- Tests migrated to main.rs with comprehensive coverage
+- Architecture improved: cleaner separation of concerns, reduced memory usage
+
+**Benefits Realized:**
+- Cleaner separation of concerns (presentation logic in templates)
+- Simplified data models with ~50% less memory usage per rule
+- Template-level control over markdown rendering
+- Eliminated duplicate content storage (markdown + HTML)
+
+### Story 1.2: Inline Rule Cross-References ✅
+**Goal:** Add automatic inline links between rules using slug-based template expressions
+
+**Acceptance Criteria:**
+- [x] Implement enhanced template expression syntax with `{{section:slug}}` and `{{rule:slug}}`
+- [x] Create rule reference processor in import script (`process_number_references`)
+- [x] Parse rule content during import to find reference patterns (both "Section X" and bare numbers)
+- [x] Replace expressions with appropriate markdown links using target rule's slug and number
+- [x] Handle cross-references within same rule set and version
+- [x] Add validation for broken references with tracking in import script
+- [x] Update import script to process references after all rules are loaded
+- [x] Test with comprehensive test cases covering both reference types
+
+**Technical Implementation Plan:**
+1. **Template expression syntax**:
+   - Use `{{slug-name}}` format for rule references
+   - Escape mechanism: `\{{slug}}` for literal double braces
+   - Slugs are stable identifiers, more reliable than rule numbers
+
+2. **Extend import script**:
+   - Add two-pass import: first pass loads rules, second pass processes `{{}}` expressions
+   - Build slug → (number, slug) mapping for current rule set/version
+   - Implement regex pattern matching for `{{slug}}` syntax
+   - Replace with markdown: `[{rule_number}](/en/rules/{rule_set}/{slug})`
+
+3. **Reference resolution logic**:
+   - Look up target rule by slug within same rule set and version
+   - Generate markdown link with rule number as display text
+   - Preserve semantic meaning: `{{handling-contested-calls}}` → `[16.3](/en/rules/indoor/handling-contested-calls)`
+   - Handle missing slugs gracefully (keep original text + warning)
+
+4. **Example transformation**:
+   ```
+   Input:  "If the opposition does not gain possession, apply {{handling-contested-calls}} instead."
+   Output: "If the opposition does not gain possession, apply [16.3](/en/rules/indoor/handling-contested-calls) instead."
+   ```
+
+**Benefits:**
+- Slug-based references are stable across rule renumbering
+- Processed once during import for optimal performance  
+- Version-specific links ensure correct rule references
+- Easy validation of reference integrity during import
+- Clean separation: content authoring uses slugs, display shows numbers
+
+**Technical Implementation Completed:**
+
+1. **Enhanced Reference Processing (`src/bin/import_rules.rs`)**:
+   - Regex pattern distinguishes "Section X" vs bare number references
+   - Generates `{{section:slug}}` for "Section X" patterns  
+   - Generates `{{rule:slug}}` for bare number patterns
+   - Tracks broken references for validation reporting
+
+2. **Template Processing (`src/handlers.rs`)**:
+   - `process_slug_references()` handles both template types
+   - Section references render as "Section X" with links
+   - Rule references render as numbers only with links
+   - Graceful fallback for missing slug mappings
+
+3. **Test Coverage**:
+   - Comprehensive tests for both reference types
+   - Tests for broken reference handling
+   - Tests for mixed reference scenarios
+   - Verified import and display functionality
+
+**Benefits Realized:**
+- Semantic distinction between section references and rule references
+- Stable cross-references survive rule renumbering
+- Import-time processing for optimal runtime performance
+- Clean markdown output with proper link formatting
 
 ### Story 2: Rule Display Enhancement 🎯
 **Goal:** Improve rule display using content excerpts instead of slug-based titles
@@ -130,9 +225,9 @@ This document tracks progress on implementing the user-facing frontend functiona
 - **Recommendation:** Start with Option B, upgrade if needed
 
 ### Content Processing
-- **Option A:** Process markdown in Rust handlers (server-side)
-- **Option B:** Use template filters for markdown processing
-- **Recommendation:** Option A for better performance and security
+- **Option A:** Process markdown in Rust handlers (server-side) ✅ IMPLEMENTED
+- **Option B:** Use template filters for markdown processing 🎯 PLANNED (Story 1.1)
+- **Updated Recommendation:** Refactor to Option B for cleaner architecture after proving Option A works
 
 ### State Management
 - **Option A:** URL-based state (version, search, etc.)

@@ -38,6 +38,52 @@ fn find_parent_rule(rules: &HashMap<String, String>, current_number: &str) -> Op
     rules.get(&parent_number).cloned()
 }
 
+/// Process rule number references in content and replace with {{slug}} templates
+fn process_number_references(
+    content: &str,
+    number_to_slug: &HashMap<String, String>, // rule number -> slug
+) -> (String, Vec<String>) {
+    // Match rule references: numbers with dots OR numbers prefixed by "Section"
+    let reference_pattern = Regex::new(r"\b(?:Section\s+(\d+(?:\.\d+)*)|(\d+\.\d+(?:\.\d+)*))\b").unwrap();
+    let mut processed_content = content.to_string();
+    let mut broken_references = Vec::new();
+    
+    // Find all rule reference patterns and replace them
+    // Sort matches by position (longest first) to avoid partial replacements
+    let mut matches: Vec<_> = reference_pattern.captures_iter(content).collect();
+    matches.sort_by(|a, b| {
+        let a_start = a.get(0).unwrap().start();
+        let b_start = b.get(0).unwrap().start();
+        b_start.cmp(&a_start) // Reverse order - process from end to start
+    });
+    
+    for captures in matches {
+        let full_match = captures.get(0).unwrap().as_str();
+        let rule_number = if let Some(section_num) = captures.get(1) {
+            section_num.as_str() // "Section 16" -> "16"
+        } else {
+            captures.get(2).unwrap().as_str() // "16.3" -> "16.3"
+        };
+        
+        if let Some(slug) = number_to_slug.get(rule_number) {
+            // Replace with prefixed slug template based on whether it was "Section X" or just "X"
+            let slug_template = if captures.get(1).is_some() {
+                // This was a "Section X" reference
+                format!("{{{{section:{}}}}}", slug)
+            } else {
+                // This was a bare number reference
+                format!("{{{{rule:{}}}}}", slug)
+            };
+            processed_content = processed_content.replace(full_match, &slug_template);
+        } else {
+            // Keep original but track as potential broken reference
+            broken_references.push(rule_number.to_string());
+        }
+    }
+    
+    (processed_content, broken_references)
+}
+
 fn read_rules_from_stdin() -> Result<Vec<RuleData>> {
     let stdin = io::stdin();
     let rule_pattern = Regex::new(r"^((?:\d+\.)+)\s+(\S+)\s+(.+)$").unwrap();
@@ -107,16 +153,37 @@ fn import_rules(rule_data: Vec<RuleData>) -> Result<()> {
     println!("Creating version...");
     repo.create_version(version)?;
 
-    // Track rule IDs by their number for parent relationships
-    let mut rule_ids: HashMap<String, String> = HashMap::new();
+    // Build number -> slug mapping for reference processing
+    let number_to_slug: HashMap<String, String> = rule_data
+        .iter()
+        .map(|rule| (rule.number.clone(), rule.slug.clone()))
+        .collect();
 
     // Sort rules by number to ensure parents are created before children
-    let mut sorted_rules = rule_data;
+    let mut sorted_rules: Vec<RuleData> = rule_data
+        .into_iter()
+        .map(|mut rule| {
+            // Process rule content to replace number references with {{slug}} templates
+            let (processed_content, broken_refs) = process_number_references(&rule.content, &number_to_slug);
+            
+            if !broken_refs.is_empty() {
+                println!("Warning: Rule {} contains potential broken references: {:?}", rule.number, broken_refs);
+            }
+            
+            rule.content = processed_content;
+            rule
+        })
+        .collect();
+
+    // Sort by rule number hierarchy
     sorted_rules.sort_by(|a, b| {
         let a_parts = parse_rule_number(&a.number);
         let b_parts = parse_rule_number(&b.number);
         a_parts.cmp(&b_parts)
     });
+
+    // Track rule IDs by their number for parent relationships
+    let mut rule_ids: HashMap<String, String> = HashMap::new();
 
     println!("Creating {} rules...", sorted_rules.len());
 
@@ -169,4 +236,50 @@ fn main() -> Result<()> {
     }
 
     import_rules(rules)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_process_number_references() {
+        let mut number_to_slug = HashMap::new();
+        number_to_slug.insert("16.3".to_string(), "handling-contested-calls".to_string());
+        number_to_slug.insert("1".to_string(), "spirit-of-the-game".to_string());
+        number_to_slug.insert("11.8".to_string(), "observers-and-rules-advisors".to_string());
+        
+        let content = "If the opposition does not gain possession, apply 16.3 according to Section 1 and Section 11.8.";
+        let (processed, broken_refs) = process_number_references(content, &number_to_slug);
+        
+        let expected = "If the opposition does not gain possession, apply {{rule:handling-contested-calls}} according to {{section:spirit-of-the-game}} and {{section:observers-and-rules-advisors}}.";
+        assert_eq!(processed, expected);
+        assert!(broken_refs.is_empty());
+    }
+
+    #[test]
+    fn test_process_number_references_ignores_parenthetical() {
+        let mut number_to_slug = HashMap::new();
+        number_to_slug.insert("16.3".to_string(), "handling-contested-calls".to_string());
+        
+        let content = "Add two (2) seconds to the stall count. Apply 16.3 if needed. This results in ten (10) seconds.";
+        let (processed, broken_refs) = process_number_references(content, &number_to_slug);
+        
+        let expected = "Add two (2) seconds to the stall count. Apply {{rule:handling-contested-calls}} if needed. This results in ten (10) seconds.";
+        assert_eq!(processed, expected);
+        assert!(broken_refs.is_empty());
+    }
+
+    #[test]
+    fn test_process_number_references_with_broken_refs() {
+        let mut number_to_slug = HashMap::new();
+        number_to_slug.insert("16.3".to_string(), "handling-contested-calls".to_string());
+        
+        let content = "Apply 16.3 and also 99.9 here.";
+        let (processed, broken_refs) = process_number_references(content, &number_to_slug);
+        
+        let expected = "Apply {{rule:handling-contested-calls}} and also 99.9 here.";
+        assert_eq!(processed, expected);
+        assert_eq!(broken_refs, vec!["99.9"]);
+    }
 }

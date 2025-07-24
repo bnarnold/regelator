@@ -8,7 +8,7 @@
             {{ rule.number }}
         </a>
         <div class="rule-content">
-            {{ rule.content_html | safe }}
+            {{ rule.content | markdown | safe }}
         </div>
         {% if rule.children %}
         {{ render_rule_tree(rule.children) }}
@@ -37,7 +37,7 @@
         </header>
         
         <div class="rule-content">
-            {{ rule.content_html | safe }}
+            {{ rule.content_markdown | markdown | safe }}
         </div>
         
         {% if child_rules %}
