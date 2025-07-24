@@ -5,7 +5,7 @@
 {% macro render_rule_tree(rules) %}
 <ol class="rule-list">
     {% for rule in rules %}
-    <li class="rule-item">
+    <li class="rule-item" id="{{ rule.slug }}">
         <a href="/{{ language }}/rules/{{ rule_set_slug }}/{{ rule.slug }}" class="rule-number-link">
             {{ rule.number }}
         </a>

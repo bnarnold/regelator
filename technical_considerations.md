@@ -176,6 +176,44 @@ This document captures technical decisions, lessons learned, and implementation 
 - Database stored in `/db` folder, gitignored
 - Health endpoint performs `SELECT 1=1` query to verify connectivity
 
+### Story 1.2 - Inline Rule Cross-References
+**What worked well:**
+- Enhanced regex pattern to distinguish "Section X" vs bare number references
+- Import-time processing provides optimal runtime performance
+- Broken reference tracking helps validate rule content integrity
+- Template-based approach scales well across different content types
+
+**What to improve:**
+- Consider adding reference validation reports in import output
+
+**Technical debt:**
+- None identified
+
+**Key decisions:**
+- Used semantic distinction: `{{section:slug}}` vs `{{rule:slug}}`
+- Section references display as "Section X", rule references as numbers only
+- Processing happens once during import, not on every request
+- Graceful fallback preserves original text for missing references
+
+### Story 1.3 - Anchor-Based Cross-Reference Navigation
+**What worked well:**
+- Context-aware link generation works cleanly with function parameter
+- Anchor tags integrate naturally with existing template structure
+- Template-level anchor IDs provide clean, semantic HTML
+- Browser back/forward navigation works seamlessly with anchors
+
+**What to improve:**
+- Could add smooth scrolling CSS for better anchor navigation experience
+
+**Technical debt:**
+- None identified
+
+**Key decisions:**
+- Added `use_anchors` parameter to distinguish list vs detail view contexts
+- List view generates `#anchor` links, detail view generates full URLs
+- Rule numbers preserve full page navigation to detail views
+- Anchor IDs use rule slugs for consistency and readability
+
 ---
 
 ## Future Technical Decisions
@@ -193,4 +231,4 @@ This document captures technical decisions, lessons learned, and implementation 
 
 ---
 
-*Last updated: 2025-07-22*
+*Last updated: 2025-07-24*

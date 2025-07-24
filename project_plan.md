@@ -30,7 +30,7 @@ Master roadmap organizing development epics for the Ultimate Frisbee rules refer
 **Why**: Provide smooth, modern user experience for rule discovery and quick reference lookups  
 
 **Detail Plan**: `project_plan_interactive_frontend.md`  
-**Status**: 🏗️ **In Progress** (3/9 stories completed)
+**Status**: 🏗️ **In Progress** (4/10 stories completed)
 
 ---
 

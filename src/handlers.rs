@@ -15,6 +15,7 @@ fn process_slug_references(
     slug_to_number: &HashMap<String, String>, // slug -> rule number
     language: &str,
     rule_set_slug: &str,
+    use_anchors: bool, // true for list view (anchors), false for detail view (full URLs)
 ) -> String {
     let slug_pattern = Regex::new(r"\{\{(section|rule):([a-z0-9\-]+)\}\}").unwrap();
     
@@ -28,7 +29,14 @@ fn process_slug_references(
             } else {
                 rule_number.to_string()
             };
-            format!("[{}](/{}/rules/{}/{})", display_text, language, rule_set_slug, slug)
+            
+            if use_anchors {
+                // Use anchor links for same-page navigation (list view)
+                format!("[{}](#{})", display_text, slug)
+            } else {
+                // Use full URLs for cross-page navigation (detail view)
+                format!("[{}](/{}/rules/{}/{})", display_text, language, rule_set_slug, slug)
+            }
         } else {
             caps[0].to_string() // Keep original if slug not found
         }
@@ -218,6 +226,7 @@ pub async fn show_rule(
                         &slug_to_number,
                         &language,
                         &rule_set_slug,
+                        false, // Use full URLs in detail view
                     ),
                 })
             } else {
@@ -248,6 +257,7 @@ pub async fn show_rule(
                 &slug_to_number,
                 &language,
                 &rule_set_slug,
+                false, // Use full URLs in detail view
             ),
         },
         parent_rule,
@@ -311,6 +321,7 @@ fn build_rule_tree(
             &slug_to_number,
             language,
             rule_set_slug,
+            true, // Use anchor links in list view
         );
         
         let node = RuleNode {
@@ -550,15 +561,28 @@ mod tests {
     }
 
     #[test]
-    fn test_process_slug_references() {
+    fn test_process_slug_references_full_urls() {
         let mut slug_to_number = HashMap::new();
         slug_to_number.insert("handling-contested-calls".to_string(), "16.3".to_string());
         slug_to_number.insert("spirit-of-the-game".to_string(), "1".to_string());
         
         let content = "If the opposition does not gain possession, apply {{rule:handling-contested-calls}} according to {{section:spirit-of-the-game}}.";
-        let processed = process_slug_references(content, &slug_to_number, "en", "wfdf-ultimate");
+        let processed = process_slug_references(content, &slug_to_number, "en", "wfdf-ultimate", false);
         
         let expected = "If the opposition does not gain possession, apply [16.3](/en/rules/wfdf-ultimate/handling-contested-calls) according to [Section 1](/en/rules/wfdf-ultimate/spirit-of-the-game).";
+        assert_eq!(processed, expected);
+    }
+
+    #[test]
+    fn test_process_slug_references_anchors() {
+        let mut slug_to_number = HashMap::new();
+        slug_to_number.insert("handling-contested-calls".to_string(), "16.3".to_string());
+        slug_to_number.insert("spirit-of-the-game".to_string(), "1".to_string());
+        
+        let content = "If the opposition does not gain possession, apply {{rule:handling-contested-calls}} according to {{section:spirit-of-the-game}}.";
+        let processed = process_slug_references(content, &slug_to_number, "en", "wfdf-ultimate", true);
+        
+        let expected = "If the opposition does not gain possession, apply [16.3](#handling-contested-calls) according to [Section 1](#spirit-of-the-game).";
         assert_eq!(processed, expected);
     }
 
@@ -567,7 +591,7 @@ mod tests {
         let slug_to_number = HashMap::new();
         
         let content = "Apply {{nonexistent-rule}} here.";
-        let processed = process_slug_references(content, &slug_to_number, "en", "wfdf-ultimate");
+        let processed = process_slug_references(content, &slug_to_number, "en", "wfdf-ultimate", false);
         
         // Should keep original template if slug not found
         assert_eq!(processed, "Apply {{nonexistent-rule}} here.");

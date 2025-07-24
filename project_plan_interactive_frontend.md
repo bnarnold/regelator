@@ -116,6 +116,71 @@ This document tracks progress on implementing the user-facing frontend functiona
 - Import-time processing for optimal runtime performance
 - Clean markdown output with proper link formatting
 
+### Story 1.3: Anchor-Based Cross-Reference Navigation ✅
+**Goal:** Enhance rule list view with anchor-based navigation for smoother cross-reference browsing
+
+**Acceptance Criteria:**
+- [x] Add anchor tags to each rule in list view using rule slug (e.g., `id="spirit-of-game"`)
+- [x] Update cross-reference links to use anchors instead of full page navigation
+- [x] Keep rule numbers as full page links to individual rule detail pages
+- [x] Test anchor navigation works correctly in both list and detail views
+- [x] Ensure browser back/forward navigation works properly with anchors
+- [x] Verify anchor links work across different rule hierarchies
+
+**Technical Implementation Plan:**
+1. **Update rule list template (`rules_list.html`)**:
+   - Add `id="{{ rule.slug }}"` to each rule container/div
+   - Ensure anchors are properly nested within the rule hierarchy
+
+2. **Modify cross-reference link generation (`process_slug_references`)**:
+   - Change from `[Section 1](/en/rules/wfdf-ultimate/spirit-of-game)` 
+   - To `[Section 1](#spirit-of-game)` for same-page anchors
+   - Keep full URLs for cross-references to different rule sets/versions  
+
+3. **Preserve rule number functionality**:
+   - Rule numbers themselves still link to individual rule detail pages
+   - Cross-reference text links to anchors for quick browsing
+
+**Example transformation**:
+```
+Current: "according to [Section 1](/en/rules/wfdf-ultimate/spirit-of-game)"
+New:     "according to [Section 1](#spirit-of-game)"
+```
+
+**Benefits:**
+- Faster navigation for cross-references (no page reload)
+- Better user experience for rule browsing
+- Maintains context when following cross-references
+- Preserves existing rule detail page functionality
+- Works naturally with browser's find-on-page functionality
+
+**Technical Implementation Completed:**
+
+1. **Template Updates (`src/templates/rules_list.html`)**:
+   - Added `id="{{ rule.slug }}"` to each `<li class="rule-item">` element
+   - Preserves existing rule number links to detail pages
+   - Anchors work correctly within hierarchical rule structure
+
+2. **Enhanced Reference Processing (`src/handlers.rs`)**:
+   - Added `use_anchors` parameter to `process_slug_references()` function
+   - List view calls use `true` to generate anchor links (`#slug`)
+   - Detail view calls use `false` to generate full URLs (`/language/rules/set/slug`)
+   - Smart context-aware link generation based on page type
+
+3. **Comprehensive Test Coverage**:
+   - `test_process_slug_references_anchors()` verifies anchor link generation
+   - `test_process_slug_references_full_urls()` verifies full URL generation
+   - Tests cover both section references and rule references
+   - All existing tests continue to pass
+
+**Benefits Realized:**
+- Instant navigation for cross-references without page reloads
+- Smooth user experience when following rule connections
+- Maintains full functionality of rule number links to detail pages
+- Works naturally with browser back/forward navigation
+- Foundation ready for future HTMX enhancements
+- Smart context detection ensures appropriate link types per page
+
 ### Story 2: Rule Display Enhancement 🎯
 **Goal:** Improve rule display using content excerpts instead of slug-based titles
 
