@@ -5,6 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Regelator - Ultimate Frisbee Rules{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/pico-v2.css">
+    <style>
+        /* Hide browser-generated list numbering for rules */
+        .rule-list {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .rule-item {
+            margin-bottom: 1rem;
+            padding-left: 1rem;
+        }
+        
+        /* Indent children to show hierarchy */
+        .rule-item .rule-list {
+            margin-top: 0.5rem;
+            padding-left: 2rem;
+        }
+        
+        .rule-number-link {
+            font-weight: bold;
+            margin-right: 0.5rem;
+            text-decoration: none;
+        }
+        
+        .rule-number-link:hover {
+            text-decoration: underline;
+        }
+        
+        .rule-content {
+            margin-top: 0.25rem;
+            line-height: 1.5;
+        }
+    </style>
 </head>
 <body>
     <header class="container">

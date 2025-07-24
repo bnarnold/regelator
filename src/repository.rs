@@ -101,6 +101,54 @@ impl RuleRepository {
         Ok(results)
     }
 
+    /// Get rules with their content for a specific version and language
+    pub fn get_rules_with_content_for_version(
+        &self,
+        version_id_param: &str,
+        language_param: &str,
+    ) -> Result<Vec<(Rule, RuleContent)>> {
+        use crate::models::rule_content::dsl as content_dsl;
+        use crate::models::rules::dsl as rules_dsl;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        let results = rules_dsl::rules
+            .inner_join(
+                content_dsl::rule_content.on(
+                    rules_dsl::id.eq(content_dsl::rule_id)
+                        .and(content_dsl::language.eq(language_param))
+                )
+            )
+            .filter(rules_dsl::version_id.eq(version_id_param))
+            .select((Rule::as_select(), RuleContent::as_select()))
+            .load::<(Rule, RuleContent)>(&mut conn)
+            .wrap_err("Failed to load rules with content")?;
+
+        Ok(results)
+    }
+
+    /// Get rule by ID
+    pub fn get_rule_by_id(&self, rule_id_param: &str) -> Result<Option<Rule>> {
+        use crate::models::rules::dsl::*;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        let result = rules
+            .filter(id.eq(rule_id_param))
+            .select(Rule::as_select())
+            .first(&mut conn)
+            .optional()
+            .wrap_err("Failed to load rule by id")?;
+
+        Ok(result)
+    }
+
     /// Get rule by slug and version
     pub fn get_rule_by_slug(
         &self,
@@ -162,6 +210,7 @@ impl RuleRepository {
 
         Ok(result)
     }
+
 
     /// Get child rules for a parent rule
     pub fn get_child_rules(&self, parent_id: &str) -> Result<Vec<Rule>> {

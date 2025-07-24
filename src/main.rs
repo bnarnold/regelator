@@ -1,7 +1,7 @@
 use axum::{
     extract::{FromRef, State},
     http::{header, HeaderValue, StatusCode},
-    response::{Html, IntoResponse, Response},
+    response::{IntoResponse, Response},
     routing::get,
     Router,
 };

@@ -28,3 +28,22 @@ Fred is in the rules committee of his national federation and coordinates rule t
 He wants to enable members of his community to learn about the rules in their native language.
 He supports translators by providing tools to compare translated versions with the English original.
 To target the committee's actions, he also wants to collect statistics about application usage and identify commonly referenced rules.
+
+## Frontend Architecture
+
+The frontend uses server-side rendering with MiniJinja templates and htmx for interactivity.
+
+### Template Structure
+- `base.html` - Main layout template
+- Page-specific templates extend the base template
+
+### HTML/CSS Principles
+- **Semantic HTML First**: Always use semantic HTML elements (`<ol>`, `<li>`, `<section>`, etc.) for proper structure and accessibility
+- **CSS for Presentation**: Use CSS to control visual presentation, not HTML structure (e.g., `list-style: none` to hide browser numbering while keeping semantic `<ol>`)
+- **Progressive Enhancement**: Base functionality works without JavaScript, enhanced with htmx
+
+### Rule Display Strategy
+- Rule hierarchies use semantic `<ol>` and `<li>` elements
+- Browser-generated numbering hidden via CSS (`list-style: none`)
+- Rule numbers are clickable links for direct navigation
+- Actual rule content displayed instead of generated titles

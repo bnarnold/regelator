@@ -6,10 +6,12 @@
 <ol class="rule-list">
     {% for rule in rules %}
     <li class="rule-item">
-        <a href="/{{ language }}/rules/{{ rule_set_slug }}/{{ rule.slug }}" class="rule-link">
-            <span class="rule-number">{{ rule.number }}</span>
-            <span class="rule-title">{{ rule.title }}</span>
+        <a href="/{{ language }}/rules/{{ rule_set_slug }}/{{ rule.slug }}" class="rule-number-link">
+            {{ rule.number }}
         </a>
+        <div class="rule-content">
+            {{ rule.content }}
+        </div>
         {% if rule.children %}
         {{ render_rule_tree(rule.children) }}
         {% endif %}

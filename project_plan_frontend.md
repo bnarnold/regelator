@@ -101,6 +101,22 @@ This document tracks progress on implementing the user-facing frontend functiona
 - Consider Progressive Web App (PWA) features
 - May need custom CSS for rule-specific layouts
 
+### Story 7: CSS Infrastructure Cleanup 🎯
+**Goal:** Move inline CSS to proper static file hosting with cache management
+
+**Acceptance Criteria:**
+- [ ] Extract inline styles from base.html to separate CSS file
+- [ ] Implement static file serving with proper headers
+- [ ] Add cache busting mechanism (ETags or versioned URLs)
+- [ ] Add cache invalidation strategy
+- [ ] Ensure CSS loads efficiently without blocking render
+
+**Technical Notes:**
+- Current: Inline `<style>` blocks in base.html
+- Need: Static file server with cache headers
+- Challenge: ETags implementation for cache busting
+- Consider: CSS file versioning strategy
+
 ## Technical Architecture Decisions Needed
 
 ### HTMX Integration Approach
