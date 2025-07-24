@@ -104,7 +104,6 @@ pub struct RuleContent {
     pub id: String,
     pub rule_id: String,
     pub language: String,
-    pub title: Option<String>,
     pub content_markdown: String,
     pub source_content_id: Option<String>,
     pub created_at: chrono::NaiveDateTime,
@@ -150,7 +149,6 @@ pub struct NewRuleContent {
     pub id: String,
     pub rule_id: String,
     pub language: String,
-    pub title: Option<String>,
     pub content_markdown: String,
     pub source_content_id: Option<String>,
 }
@@ -211,7 +209,6 @@ impl NewRuleContent {
     pub fn new(
         rule_id: String,
         language: String,
-        title: Option<String>,
         content_markdown: String,
         source_content_id: Option<String>,
     ) -> Self {
@@ -219,7 +216,6 @@ impl NewRuleContent {
             id: Uuid::now_v7().to_string(),
             rule_id,
             language,
-            title,
             content_markdown,
             source_content_id,
         }

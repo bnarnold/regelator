@@ -215,7 +215,6 @@ fn import_rules(rule_data: Vec<RuleData>) -> Result<()> {
             id: content_id,
             rule_id: rule_id.clone(),
             language: "en".to_string(),
-            title: None,
             content_markdown: rule_data.content,
             source_content_id: None,
         };

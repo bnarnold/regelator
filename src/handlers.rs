@@ -400,7 +400,6 @@ mod tests {
             id: format!("{}_content", id),
             rule_id: id.to_string(),
             language: "en".to_string(),
-            title: None,
             content_markdown: content.to_string(),
             source_content_id: None,
             created_at: chrono::NaiveDate::from_ymd_opt(2024, 1, 1)

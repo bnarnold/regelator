@@ -5,7 +5,6 @@ diesel::table! {
         id -> Nullable<Text>,
         rule_id -> Text,
         language -> Text,
-        title -> Nullable<Text>,
         content_markdown -> Text,
         source_content_id -> Nullable<Text>,
         created_at -> Timestamp,

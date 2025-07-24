@@ -43,7 +43,7 @@ This document explains the design decisions and principles behind the Regelator 
 ### Rule Display
 ```sql
 -- Get rule with English content
-SELECT r.slug, r.current_number, rc.title, rc.content_markdown
+SELECT r.slug, r.number, rc.content_markdown
 FROM rules r
 JOIN rule_content rc ON r.id = rc.rule_id
 WHERE r.slug = 'spirit-respectful-language' AND rc.language = 'en';
@@ -52,8 +52,7 @@ WHERE r.slug = 'spirit-respectful-language' AND rc.language = 'en';
 ### Translation Workflow
 ```sql
 -- Get rule with German translation, fallback to English
-SELECT r.slug, r.current_number,
-       COALESCE(rc_de.title, rc_en.title) as title,
+SELECT r.slug, r.number,
        COALESCE(rc_de.content_markdown, rc_en.content_markdown) as content
 FROM rules r
 JOIN rule_content rc_en ON r.id = rc_en.rule_id AND rc_en.language = 'en'
@@ -64,7 +63,7 @@ WHERE r.slug = 'spirit-respectful-language';
 ### Cross-reference Resolution
 ```sql
 -- Find all rules that reference a specific glossary term
-SELECT r.slug, r.current_number, rc.title
+SELECT r.slug, r.number, rc.content_markdown
 FROM cross_references cr
 JOIN rules r ON cr.from_id = r.id
 JOIN rule_content rc ON r.id = rc.rule_id AND rc.language = 'en'

@@ -54,8 +54,7 @@ erDiagram
         uuid rule_set_id FK
         uuid version_id FK
         uuid parent_rule_id FK "nullable, for hierarchy"
-        text current_number "1.3.7"
-        integer sort_order "for consistent ordering"
+        text number "1.3.7"
         timestamp created_at
         timestamp updated_at
     }
@@ -64,7 +63,6 @@ erDiagram
         uuid id PK
         uuid rule_id FK
         text language "en, de"
-        text title "Spirit of the Game"
         text content_markdown
         uuid source_content_id FK "nullable, points to English original"
         timestamp created_at
