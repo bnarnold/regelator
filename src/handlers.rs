@@ -5,9 +5,19 @@ use axum::{
 use minijinja::Environment;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use pulldown_cmark::{html, Parser};
+use ammonia::clean;
 
 use crate::{models::{Rule, RuleContent}, repository::RuleRepository, AppError};
 use std::collections::HashMap;
+
+/// Convert markdown text to safe HTML
+fn markdown_to_html(markdown: &str) -> String {
+    let parser = Parser::new(markdown);
+    let mut html_output = String::new();
+    html::push_html(&mut html_output, parser);
+    clean(&html_output).to_string()
+}
 
 #[derive(Deserialize)]
 pub struct VersionQuery {
@@ -41,6 +51,7 @@ struct RuleNode {
     number: String,
     slug: String,
     content: String,
+    content_html: String,
     children: Vec<RuleNode>,
 }
 
@@ -65,6 +76,7 @@ struct RuleDetailData {
     number: String,
     slug: String,
     content_markdown: String,
+    content_html: String,
 }
 
 /// GET /en/rules - List all rule sets
@@ -178,7 +190,8 @@ pub async fn show_rule(
                 Some(RuleDetailData {
                     number: parent.number,
                     slug: parent.slug,
-                    content_markdown: parent_content.content_markdown,
+                    content_markdown: parent_content.content_markdown.clone(),
+                    content_html: markdown_to_html(&parent_content.content_markdown),
                 })
             } else {
                 None
@@ -205,7 +218,8 @@ pub async fn show_rule(
         rule: RuleDetailData {
             number: rule.number,
             slug: rule.slug,
-            content_markdown: content.content_markdown,
+            content_markdown: content.content_markdown.clone(),
+            content_html: markdown_to_html(&content.content_markdown),
         },
         parent_rule,
         child_rules,
@@ -257,6 +271,7 @@ fn build_rule_tree(rules_with_content: Vec<(Rule, RuleContent)>) -> Vec<RuleNode
             number: rule.number.clone(),
             slug: rule.slug.clone(),
             content: content.content_markdown.clone(),
+            content_html: markdown_to_html(&content.content_markdown),
             children: Vec::new(),
         };
         nodes.insert(rule.id.clone(), node);
@@ -358,10 +373,13 @@ mod tests {
         assert_eq!(tree.len(), 3);
         assert_eq!(tree[0].number, "1");
         assert_eq!(tree[0].content, "Rule 1 content");
+        assert_eq!(tree[0].content_html, "<p>Rule 1 content</p>\n");
         assert_eq!(tree[1].number, "2");
         assert_eq!(tree[1].content, "Rule 2 content");
+        assert_eq!(tree[1].content_html, "<p>Rule 2 content</p>\n");
         assert_eq!(tree[2].number, "10");
         assert_eq!(tree[2].content, "Rule 10 content");
+        assert_eq!(tree[2].content_html, "<p>Rule 10 content</p>\n");
     }
 
     #[test]
@@ -454,17 +472,20 @@ mod tests {
                 number: "10".to_string(),
                 slug: "rule-10".to_string(),
                 content: "Rule 10 content".to_string(),
+                content_html: "<p>Rule 10 content</p>\n".to_string(),
                 children: vec![
                     RuleNode {
                         number: "10.10".to_string(),
                         slug: "rule-10-10".to_string(),
                         content: "Rule 10.10 content".to_string(),
+                        content_html: "<p>Rule 10.10 content</p>\n".to_string(),
                         children: vec![],
                     },
                     RuleNode {
                         number: "10.2".to_string(),
                         slug: "rule-10-2".to_string(),
                         content: "Rule 10.2 content".to_string(),
+                        content_html: "<p>Rule 10.2 content</p>\n".to_string(),
                         children: vec![],
                     },
                 ],
@@ -473,6 +494,7 @@ mod tests {
                 number: "2".to_string(),
                 slug: "rule-2".to_string(),
                 content: "Rule 2 content".to_string(),
+                content_html: "<p>Rule 2 content</p>\n".to_string(),
                 children: vec![],
             },
         ];
@@ -487,5 +509,70 @@ mod tests {
         assert_eq!(nodes[1].children[0].content, "Rule 10.2 content");
         assert_eq!(nodes[1].children[1].number, "10.10");
         assert_eq!(nodes[1].children[1].content, "Rule 10.10 content");
+    }
+
+    #[test]
+    fn test_markdown_to_html_basic_features() {
+        // Test headers
+        assert_eq!(markdown_to_html("# Header 1"), "<h1>Header 1</h1>\n");
+        assert_eq!(markdown_to_html("## Header 2"), "<h2>Header 2</h2>\n");
+        
+        // Test emphasis
+        assert_eq!(markdown_to_html("*italic*"), "<p><em>italic</em></p>\n");
+        assert_eq!(markdown_to_html("**bold**"), "<p><strong>bold</strong></p>\n");
+        
+        // Test links (ammonia adds rel attributes for security)
+        assert_eq!(
+            markdown_to_html("[link text](https://example.com)"),
+            "<p><a href=\"https://example.com\" rel=\"noopener noreferrer\">link text</a></p>\n"
+        );
+        
+        // Test lists
+        assert_eq!(
+            markdown_to_html("- Item 1\n- Item 2"),
+            "<ul>\n<li>Item 1</li>\n<li>Item 2</li>\n</ul>\n"
+        );
+        
+        // Test ordered lists
+        assert_eq!(
+            markdown_to_html("1. First\n2. Second"),
+            "<ol>\n<li>First</li>\n<li>Second</li>\n</ol>\n"
+        );
+    }
+
+    #[test]
+    fn test_markdown_to_html_xss_protection() {
+        // Test that script tags are completely removed by ammonia
+        assert_eq!(
+            markdown_to_html("<script>alert('xss')</script>"),
+            ""
+        );
+        
+        // Test that raw HTML is sanitized by ammonia (script tags removed)
+        assert_eq!(
+            markdown_to_html("Plain text with <script>"),
+            "<p>Plain text with </p>"
+        );
+        
+        // Test that dangerous links are sanitized (href removed, rel added)
+        assert_eq!(
+            markdown_to_html("[dangerous](javascript:alert('xss'))"),
+            "<p><a rel=\"noopener noreferrer\">dangerous</a></p>\n"
+        );
+    }
+
+    #[test]
+    fn test_markdown_to_html_safe_html() {
+        // Test that basic HTML tags are preserved when safe
+        assert_eq!(
+            markdown_to_html("Normal **bold** text"),
+            "<p>Normal <strong>bold</strong> text</p>\n"
+        );
+        
+        // Test paragraphs
+        assert_eq!(
+            markdown_to_html("First paragraph\n\nSecond paragraph"),
+            "<p>First paragraph</p>\n<p>Second paragraph</p>\n"
+        );
     }
 }
