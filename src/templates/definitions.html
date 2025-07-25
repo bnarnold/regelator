@@ -18,7 +18,8 @@
                 <article id="{{ definition.slug }}" class="definition-item">
                     <h2>{{ definition.term }}</h2>
                     <div class="definition-content">
-                        {{ definition.definition_html | markdown | safe }}
+                        {% set link_context = {"definition": "#", "rule": "/en/rules/" + rule_set_slug + "/"} %}
+                        {{ definition.definition_html | markdown(link_context) | safe }}
                     </div>
                 </article>
             {% endfor %}

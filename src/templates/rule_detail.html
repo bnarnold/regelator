@@ -8,7 +8,8 @@
             {{ rule.number }}
         </a>
         <div class="rule-content">
-            {{ rule.content | markdown | safe }}
+            {% set link_context = {"definition": "/" + language + "/rules/" + rule_set_slug + "/definitions#", "rule": "/" + language + "/rules/" + rule_set_slug + "/"} %}
+            {{ rule.content | markdown(link_context) | safe }}
         </div>
         {% if rule.children %}
         {{ render_rule_tree(rule.children) }}
@@ -37,7 +38,8 @@
         </header>
         
         <div class="rule-content">
-            {{ rule.content_markdown | markdown | safe }}
+            {% set link_context = {"definition": "/" + language + "/rules/" + rule_set_slug + "/definitions#", "rule": "/" + language + "/rules/" + rule_set_slug + "/"} %}
+            {{ rule.content_markdown | markdown(link_context) | safe }}
         </div>
         
         {% if child_rules %}

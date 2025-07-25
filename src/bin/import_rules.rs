@@ -48,17 +48,13 @@ fn process_number_references(
     let mut processed_content = content.to_string();
     let mut broken_references = Vec::new();
     
-    // Find all rule reference patterns and replace them
-    // Sort matches by position (longest first) to avoid partial replacements
-    let mut matches: Vec<_> = reference_pattern.captures_iter(content).collect();
-    matches.sort_by(|a, b| {
-        let a_start = a.get(0).unwrap().start();
-        let b_start = b.get(0).unwrap().start();
-        b_start.cmp(&a_start) // Reverse order - process from end to start
-    });
+    // Find all rule reference patterns and collect replacements
+    let mut replacements = Vec::new();
     
-    for captures in matches {
-        let full_match = captures.get(0).unwrap().as_str();
+    for mat in reference_pattern.find_iter(content) {
+        let full_match = mat.as_str();
+        let captures = reference_pattern.captures(full_match).unwrap();
+        
         let rule_number = if let Some(section_num) = captures.get(1) {
             section_num.as_str() // "Section 16" -> "16"
         } else {
@@ -66,19 +62,18 @@ fn process_number_references(
         };
         
         if let Some(slug) = number_to_slug.get(rule_number) {
-            // Replace with prefixed slug template based on whether it was "Section X" or just "X"
-            let slug_template = if captures.get(1).is_some() {
-                // This was a "Section X" reference
-                format!("{{{{section:{}}}}}", slug)
-            } else {
-                // This was a bare number reference
-                format!("{{{{rule:{}}}}}", slug)
-            };
-            processed_content = processed_content.replace(full_match, &slug_template);
+            // Replace with markdown link - both "Section X" and "X.Y" use rule: scheme
+            let markdown_link = format!("[{}](rule:{})", full_match, slug);
+            replacements.push((mat.start(), mat.end(), markdown_link));
         } else {
             // Keep original but track as potential broken reference
             broken_references.push(rule_number.to_string());
         }
+    }
+    
+    // Apply replacements from end to start to preserve indices
+    for (start, end, replacement) in replacements.into_iter().rev() {
+        processed_content.replace_range(start..end, &replacement);
     }
     
     (processed_content, broken_references)
@@ -251,7 +246,7 @@ mod tests {
         let content = "If the opposition does not gain possession, apply 16.3 according to Section 1 and Section 11.8.";
         let (processed, broken_refs) = process_number_references(content, &number_to_slug);
         
-        let expected = "If the opposition does not gain possession, apply {{rule:handling-contested-calls}} according to {{section:spirit-of-the-game}} and {{section:observers-and-rules-advisors}}.";
+        let expected = "If the opposition does not gain possession, apply [16.3](rule:handling-contested-calls) according to [Section 1](rule:spirit-of-the-game) and [Section 11.8](rule:observers-and-rules-advisors).";
         assert_eq!(processed, expected);
         assert!(broken_refs.is_empty());
     }
@@ -264,7 +259,7 @@ mod tests {
         let content = "Add two (2) seconds to the stall count. Apply 16.3 if needed. This results in ten (10) seconds.";
         let (processed, broken_refs) = process_number_references(content, &number_to_slug);
         
-        let expected = "Add two (2) seconds to the stall count. Apply {{rule:handling-contested-calls}} if needed. This results in ten (10) seconds.";
+        let expected = "Add two (2) seconds to the stall count. Apply [16.3](rule:handling-contested-calls) if needed. This results in ten (10) seconds.";
         assert_eq!(processed, expected);
         assert!(broken_refs.is_empty());
     }
@@ -277,7 +272,7 @@ mod tests {
         let content = "Apply 16.3 and also 99.9 here.";
         let (processed, broken_refs) = process_number_references(content, &number_to_slug);
         
-        let expected = "Apply {{rule:handling-contested-calls}} and also 99.9 here.";
+        let expected = "Apply [16.3](rule:handling-contested-calls) and also 99.9 here.";
         assert_eq!(processed, expected);
         assert_eq!(broken_refs, vec!["99.9"]);
     }

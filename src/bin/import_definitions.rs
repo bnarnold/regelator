@@ -120,8 +120,8 @@ fn process_definition_references(
         if let Some((_, slug)) = sorted_terms.iter().find(|(term, _)| {
             term.to_lowercase() == matched_text.to_lowercase()
         }) {
-            replacements.push((mat.start(), mat.end(), format!("{{{{definition:{}}}}}", slug)));
-            println!("    Found term '{}' -> {{{{definition:{}}}}}", matched_text, slug);
+            replacements.push((mat.start(), mat.end(), format!("[{}](definition:{})", matched_text, slug)));
+            println!("    Found term '{}' -> [{}](definition:{})", matched_text, matched_text, slug);
         }
     }
     
@@ -346,7 +346,7 @@ mod tests {
         let content = "A pass in Ultimate Frisbee can be intercepted. A foul stops play.";
         let processed = process_definition_references(content, &term_to_slug);
         
-        let expected = "A {{definition:pass}} in {{definition:ultimate-frisbee}} can be intercepted. A {{definition:foul}} stops play.";
+        let expected = "A [pass](definition:pass) in [Ultimate Frisbee](definition:ultimate-frisbee) can be intercepted. A [foul](definition:foul) stops play.";
         assert_eq!(processed, expected);
     }
 
@@ -358,7 +358,7 @@ mod tests {
         let content = "The pass was incomplete. A PASS requires catching. Lower case pass works too.";
         let processed = process_definition_references(content, &term_to_slug);
         
-        let expected = "The {{definition:pass}} was incomplete. A {{definition:pass}} requires catching. Lower case {{definition:pass}} works too.";
+        let expected = "The [pass](definition:pass) was incomplete. A [PASS](definition:pass) requires catching. Lower case [pass](definition:pass) works too.";
         assert_eq!(processed, expected);
     }
 
@@ -371,7 +371,7 @@ mod tests {
         let processed = process_definition_references(content, &term_to_slug);
         
         // Only the standalone word "pass" should be replaced, not parts of other words
-        let expected = "A {{definition:pass}} is good, but passage is different. Passing and bypass contain {{definition:pass}}.";
+        let expected = "A [pass](definition:pass) is good, but passage is different. Passing and bypass contain [pass](definition:pass).";
         assert_eq!(processed, expected);
     }
 
@@ -387,7 +387,7 @@ mod tests {
         let processed = process_definition_references(content, &term_to_slug);
         
         // Should prefer longer matches: "offensive player" over "player", "possession of the disc" over parts
-        let expected = "The {{definition:offensive-player}} in {{definition:possession-of-the-disc}}, or the {{definition:player}} who has just thrown the disc prior to when the result of the {{definition:throw}} has been determined.";
+        let expected = "The [offensive player](definition:offensive-player) in [possession of the disc](definition:possession-of-the-disc), or the [player](definition:player) who has just thrown the disc prior to when the result of the [throw](definition:throw) has been determined.";
         assert_eq!(processed, expected);
     }
 }

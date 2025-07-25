@@ -333,10 +333,10 @@ Rendered: "If the foul [affected the play](/en/rules/wfdf-ultimate/definitions#a
 - Repository pattern scales well for new entity types
 - Pico CSS provides sufficient styling without custom CSS
 
-### Story 2.2: Automatic Term Linking in Rule Content ✅
+### Story 2.2: Automatic Term Linking in Rule Content ✅ → 🔄 **Refactoring**
 **Goal:** Automatically detect and link glossary terms when they appear in rule content
 
-**Acceptance Criteria:**
+**Phase 1 Completed (Template-based approach):**
 - [x] Create term detection system that identifies glossary terms in rule content
 - [x] Implement case-insensitive matching (e.g., "affect the play" matches "Affect the play")  
 - [x] Generate links to definitions page with anchors (e.g., `#affect-the-play`)
@@ -346,34 +346,86 @@ Rendered: "If the foul [affected the play](/en/rules/wfdf-ultimate/definitions#a
 - [x] Test with real rule content containing multiple terms
 - [x] Ensure performance is acceptable with full glossary
 
-**Technical Implementation Completed:**
+**Phase 2: Markdown Link Refactoring (In Progress)**
+**Motivation:** Separate link text from link destination for better flexibility and template control
 
-1. **Extended Template System (`src/handlers.rs`)**:
-   - Added `{{definition:slug}}` support to existing `{{rule:slug}}` and `{{section:slug}}` patterns
-   - Updated `process_slug_references()` function with new parameter for definition mappings
-   - Added `build_definition_slugs()` helper function for slug-to-term mapping
+**New Approach:**
+- Import script generates: `[original text](definition:slug)` instead of `{{definition:slug}}`
+- Enhanced markdown filter processes custom link schemes: `definition:slug`, `rule:slug`
+- Templates control link behavior via context mapping passed to filter
+- Presentation logic stays in templates, not handlers
 
-2. **Smart Import Processing (`src/bin/import_definitions.rs`)**:
-   - Added `process_definition_references()` function with advanced regex matching
-   - Single-pass processing using combined regex for optimal performance
-   - Maximal length matching prevents overlapping term conflicts (e.g., "offensive player" vs "player")
-   - Case-insensitive word boundary detection for accurate matching
+**Architecture Benefits:**
+- ✅ **Flexible link text**: Original formatting preserved independently of destination
+- ✅ **Template control**: Each page type can define different link behaviors
+- ✅ **Context-aware linking**: Same content renders differently based on page context
+- ✅ **Standard markdown**: Uses familiar `[text](url)` syntax with custom schemes
+- ✅ **Extensible**: Easy to add `rule:`, `section:`, `figure:` schemes
 
-3. **Definition Page Handler Integration**:
-   - Fixed definitions page to process `{{definition:slug}}` templates before rendering
-   - Ensures cross-references work properly in definition content display
-   - Links point to definitions page with anchor navigation
+**Implementation Plan:**
+1. **Enhanced Markdown Filter**: Adapt existing filter to accept link context mapping
+2. **Import Script Update**: Generate markdown links `[text](type:slug)` instead of templates
+3. **Template Updates**: Use filter with context: `{{ content | markdown(link_context) }}`
+4. **Handler Simplification**: Remove `process_slug_references` complexity
 
-**Technical Breakthroughs:**
-- **Overlapping Terms Solution**: Used single combined regex with longest-first ordering to handle complex cases like "offensive player" containing "player"
-- **Non-overlapping Matches**: Leveraged regex `find_iter()` for automatic maximal-length matching
-- **Import-time Processing**: Process content during import rather than runtime for optimal performance
+**Example Template Usage:**
+```jinja2
+<!-- Rules list: definitions → definitions page, rules → same-page anchors -->
+{{ rule.content | markdown({
+    "definition": "/en/rules/wfdf-ultimate/definitions#",
+    "rule": "#"
+}) }}
 
-**Benefits Realized:**
-- Automatic cross-linking creates rich, interconnected definition networks
-- Users can navigate between related terms seamlessly
-- Robust handling of complex term relationships and overlaps
-- Clean integration with existing cross-reference architecture
+<!-- Definitions page: definitions → same-page, rules → full URLs -->
+{{ definition.content | markdown({
+    "definition": "#", 
+    "rule": "/en/rules/wfdf-ultimate/"
+}) }}
+```
+
+### Story 2.3: Markdown Link Context System 🎯
+**Goal:** Refactor cross-reference system to use markdown links with context-aware URL rewriting
+
+**Acceptance Criteria:**
+- [x] Enhance existing markdown filter to accept link context parameter
+- [x] Support custom link schemes: `definition:slug`, `rule:slug` in markdown
+- [x] Update import scripts to generate `[text](type:slug)` instead of `{{type:slug}}`
+- [x] Update all templates to use enhanced markdown filter with appropriate context
+- [x] Remove complex `process_slug_references` function and related handler logic
+- [x] Ensure backward compatibility during migration
+- [x] Test all link types work correctly across different page contexts
+
+**Technical Implementation Plan:**
+1. **Filter Enhancement (`src/main.rs`)** ✅ **COMPLETED**:
+   - ✅ Modified `markdown_filter` to accept optional `link_context` parameter
+   - ✅ Use pulldown-cmark event processing to intercept and rewrite custom link schemes
+   - ✅ Preserved all existing functionality (XSS protection, basic markdown features)
+
+2. **Import Script Updates** ✅ **COMPLETED**:
+   - ✅ Modified `process_definition_references` to generate `[text](definition:slug)` format
+   - ✅ Modified `process_number_references` to generate `[text](rule:slug)` format
+   - ✅ **Architecture Simplification**: Both "Section X" and "X.Y" now use unified `rule:` scheme
+   - ✅ Fixed overlapping replacement issues with range-based processing
+   - ✅ Updated all tests for both import scripts
+
+3. **Template Migration** ✅ **COMPLETED**:
+   - ✅ Updated `rules_list.html`, `rule_detail.html`, `definitions.html` templates
+   - ✅ Templates build link context directly: `{% set link_context = {...} %}`
+   - ✅ Context-aware link behavior: rules list uses anchors, detail uses full URLs
+
+4. **Handler Cleanup** ✅ **COMPLETED**:
+   - ✅ Removed `process_slug_references` function and related complexity
+   - ✅ Simplified rule and definition handlers - now use raw markdown content directly
+   - ✅ Removed definition slug mapping logic from handlers
+   - ✅ Removed all related test functions and unused imports
+   - ✅ Cleaned up `build_rule_tree` function signature
+
+**Benefits:**
+- Cleaner separation of concerns (templates control presentation)
+- More flexible link behavior per page context
+- Easier to extend for new link types (sections, figures, etc.)
+- Standard markdown syntax with custom URL schemes
+- Simplified handler logic
 
 ### Story 3: Interactive Rule Navigation with HTMX 🎯
 **Goal:** Add smooth, interactive navigation between rules without full page reloads
