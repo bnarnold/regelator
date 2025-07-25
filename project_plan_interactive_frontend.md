@@ -333,30 +333,47 @@ Rendered: "If the foul [affected the play](/en/rules/wfdf-ultimate/definitions#a
 - Repository pattern scales well for new entity types
 - Pico CSS provides sufficient styling without custom CSS
 
-### Story 2.2: Automatic Term Linking in Rule Content 🎯
+### Story 2.2: Automatic Term Linking in Rule Content ✅
 **Goal:** Automatically detect and link glossary terms when they appear in rule content
 
 **Acceptance Criteria:**
-- [ ] Create term detection system that identifies glossary terms in rule content
-- [ ] Implement case-insensitive matching (e.g., "affect the play" matches "Affect the play")  
-- [ ] Generate links to definitions page with anchors (e.g., `#affect-the-play`)
-- [ ] Preserve original text formatting and case in rule display
-- [ ] Handle partial matches and avoid false positives
-- [ ] Process term linking during rule content rendering
-- [ ] Test with real rule content containing multiple terms
-- [ ] Ensure performance is acceptable with full glossary
+- [x] Create term detection system that identifies glossary terms in rule content
+- [x] Implement case-insensitive matching (e.g., "affect the play" matches "Affect the play")  
+- [x] Generate links to definitions page with anchors (e.g., `#affect-the-play`)
+- [x] Preserve original text formatting and case in rule display
+- [x] Handle partial matches and avoid false positives
+- [x] Process term linking during rule content rendering
+- [x] Test with real rule content containing multiple terms
+- [x] Ensure performance is acceptable with full glossary
 
-**Technical Implementation Plan:**
-- Extend existing `process_slug_references` function or create new term linking system
-- Build glossary term index for efficient lookup during rendering  
-- Use word boundary detection to avoid partial matches
-- Consider longest-first matching to handle overlapping terms
-- Add links that open definitions page scrolled to specific term
+**Technical Implementation Completed:**
 
-**Benefits:**
-- Users can quickly access definitions while reading rules
-- Improves rule comprehension by providing contextual help
-- Creates natural discovery of related terminology
+1. **Extended Template System (`src/handlers.rs`)**:
+   - Added `{{definition:slug}}` support to existing `{{rule:slug}}` and `{{section:slug}}` patterns
+   - Updated `process_slug_references()` function with new parameter for definition mappings
+   - Added `build_definition_slugs()` helper function for slug-to-term mapping
+
+2. **Smart Import Processing (`src/bin/import_definitions.rs`)**:
+   - Added `process_definition_references()` function with advanced regex matching
+   - Single-pass processing using combined regex for optimal performance
+   - Maximal length matching prevents overlapping term conflicts (e.g., "offensive player" vs "player")
+   - Case-insensitive word boundary detection for accurate matching
+
+3. **Definition Page Handler Integration**:
+   - Fixed definitions page to process `{{definition:slug}}` templates before rendering
+   - Ensures cross-references work properly in definition content display
+   - Links point to definitions page with anchor navigation
+
+**Technical Breakthroughs:**
+- **Overlapping Terms Solution**: Used single combined regex with longest-first ordering to handle complex cases like "offensive player" containing "player"
+- **Non-overlapping Matches**: Leveraged regex `find_iter()` for automatic maximal-length matching
+- **Import-time Processing**: Process content during import rather than runtime for optimal performance
+
+**Benefits Realized:**
+- Automatic cross-linking creates rich, interconnected definition networks
+- Users can navigate between related terms seamlessly
+- Robust handling of complex term relationships and overlaps
+- Clean integration with existing cross-reference architecture
 
 ### Story 3: Interactive Rule Navigation with HTMX 🎯
 **Goal:** Add smooth, interactive navigation between rules without full page reloads

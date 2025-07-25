@@ -233,6 +233,39 @@ This document captures technical decisions, lessons learned, and implementation 
 - Focused on simplification over feature addition
 - Discovered that sometimes the best enhancement is removing complexity
 
+### Story 2.2: Definition Cross-Reference Integration
+**What worked well:**
+- Extended existing `{{rule:slug}}` pattern to support `{{definition:slug}}`
+- Clean separation: import script processes content, handler resolves links
+- Comprehensive test coverage for edge cases (word boundaries, case insensitivity, overlapping terms)
+- Direct content processing avoids database update complexity
+- Single-pass regex solution elegantly handles overlapping term conflicts
+
+**What to improve:**
+- Proper logging framework instead of println! statements
+- Configurable term matching (currently case-insensitive with word boundaries)
+
+**Technical debt:**
+- **Logging**: Using println! for import progress instead of proper log levels (info, debug, etc.)
+- **Future improvement**: Add structured logging crate (e.g., `log` + `env_logger`) for better debugging
+
+**Key decisions:**
+- Process definition content before import rather than post-processing database
+- **Overlapping Terms Solution**: Single combined regex with longest-first term ordering
+- Non-overlapping maximal matches via regex `find_iter()` prevents conflicts like `{{definition:offensive-{{definition:player}}}}`
+- Always link to definitions page with anchors (no context-dependent behavior)
+- Import-time processing for optimal runtime performance
+
+**Major Technical Breakthrough:**
+- **Problem**: Sequential regex replacements created overlapping substitutions (e.g., "offensive player" → "offensive {{definition:player}}" → "{{definition:offensive-{{definition:player}}}}")
+- **Solution**: Build single regex with all terms as alternatives, sorted by length, using `find_iter()` for non-overlapping maximal matches
+- **Result**: Clean handling of complex term relationships like "offensive player" vs "player"
+
+**Architecture Lessons:**
+- Template-based cross-reference system scales well across different content types
+- Import-time content processing more efficient than runtime processing
+- Regex alternation with maximal matching handles complex linguistic overlaps better than sequential processing
+
 ---
 
 ## Future Technical Decisions

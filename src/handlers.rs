@@ -9,36 +9,59 @@ use crate::{models::{Rule, RuleContent}, repository::RuleRepository, AppError};
 use std::collections::HashMap;
 use regex::Regex;
 
-/// Process {{section:slug}} and {{rule:slug}} templates in content and replace with markdown links
+/// Helper function to build definition slug -> term name mapping
+fn build_definition_slugs(repository: &RuleRepository, rule_set_id: &str, version_id: &str) -> HashMap<String, String> {
+    repository.get_glossary_terms(rule_set_id, version_id)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(term, content)| (term.slug, content.term))
+        .collect()
+}
+
+/// Process {{section:slug}}, {{rule:slug}}, and {{definition:slug}} templates in content and replace with markdown links
 fn process_slug_references(
     content: &str,
     slug_to_number: &HashMap<String, String>, // slug -> rule number
+    definition_slugs: &HashMap<String, String>, // definition slug -> term name
     language: &str,
     rule_set_slug: &str,
     use_anchors: bool, // true for list view (anchors), false for detail view (full URLs)
 ) -> String {
-    let slug_pattern = Regex::new(r"\{\{(section|rule):([a-z0-9\-]+)\}\}").unwrap();
+    let slug_pattern = Regex::new(r"\{\{(section|rule|definition):([a-z0-9\-]+)\}\}").unwrap();
     
     slug_pattern.replace_all(content, |caps: &regex::Captures| {
-        let template_type = &caps[1]; // "section" or "rule"
+        let template_type = &caps[1]; // "section", "rule", or "definition"
         let slug = &caps[2];
         
-        if let Some(rule_number) = slug_to_number.get(slug) {
-            let display_text = if template_type == "section" {
-                format!("Section {}", rule_number)
-            } else {
-                rule_number.to_string()
-            };
-            
-            if use_anchors {
-                // Use anchor links for same-page navigation (list view)
-                format!("[{}](#{})", display_text, slug)
-            } else {
-                // Use full URLs for cross-page navigation (detail view)
-                format!("[{}](/{}/rules/{}/{})", display_text, language, rule_set_slug, slug)
+        match template_type {
+            "definition" => {
+                if let Some(term_name) = definition_slugs.get(slug) {
+                    // Always link to definitions page with anchor
+                    format!("[{}](/{}/rules/{}/definitions#{})", term_name, language, rule_set_slug, slug)
+                } else {
+                    caps[0].to_string() // Keep original if slug not found
+                }
             }
-        } else {
-            caps[0].to_string() // Keep original if slug not found
+            "section" | "rule" => {
+                if let Some(rule_number) = slug_to_number.get(slug) {
+                    let display_text = if template_type == "section" {
+                        format!("Section {}", rule_number)
+                    } else {
+                        rule_number.to_string()
+                    };
+                    
+                    if use_anchors {
+                        // Use anchor links for same-page navigation (list view)
+                        format!("[{}](#{})", display_text, slug)
+                    } else {
+                        // Use full URLs for cross-page navigation (detail view)
+                        format!("[{}](/{}/rules/{}/{})", display_text, language, rule_set_slug, slug)
+                    }
+                } else {
+                    caps[0].to_string() // Keep original if slug not found
+                }
+            }
+            _ => caps[0].to_string() // Unknown template type, keep original
         }
     }).to_string()
 }
@@ -152,8 +175,18 @@ pub async fn list_rules(
     // Get all rules with content for this version
     let rules_with_content = repo.get_rules_with_content_for_version(&version.id, &language)?;
 
+    // Get rule set info to build definition slug mapping
+    let rule_sets = repo.get_rule_sets()?;
+    let rule_set = rule_sets
+        .iter()
+        .find(|rs| rs.slug == rule_set_slug)
+        .ok_or_else(|| eyre::eyre!("Rule set '{}' not found", rule_set_slug))?;
+    
+    // Build definition slug -> term name mapping
+    let definition_slugs = build_definition_slugs(&repo, &rule_set.id, &version.id);
+
     // Build hierarchical tree structure
-    let rule_tree = build_rule_tree(rules_with_content, &language, &rule_set_slug);
+    let rule_tree = build_rule_tree(rules_with_content, &language, &rule_set_slug, &definition_slugs);
 
     let context = RulesListContext {
         language: language.clone(),
@@ -211,6 +244,16 @@ pub async fn show_rule(
         .iter()
         .map(|(rule, _)| (rule.slug.clone(), rule.number.clone()))
         .collect();
+    
+    // Get rule set info to build definition slug mapping
+    let rule_sets = repo.get_rule_sets()?;
+    let rule_set = rule_sets
+        .iter()
+        .find(|rs| rs.slug == rule_set_slug)
+        .ok_or_else(|| eyre::eyre!("Rule set '{}' not found", rule_set_slug))?;
+    
+    // Build definition slug -> term name mapping
+    let definition_slugs = build_definition_slugs(&repo, &rule_set.id, &version.id);
 
     // Get parent rule if it exists
     let parent_rule = if let Some(parent_id) = &rule.parent_rule_id {
@@ -224,6 +267,7 @@ pub async fn show_rule(
                     content_markdown: process_slug_references(
                         &parent_content.content_markdown,
                         &slug_to_number,
+                        &definition_slugs,
                         &language,
                         &rule_set_slug,
                         false, // Use full URLs in detail view
@@ -239,7 +283,7 @@ pub async fn show_rule(
         None
     };
     
-    let full_tree = build_rule_tree(all_rules_with_content, &language, &rule_set_slug);
+    let full_tree = build_rule_tree(all_rules_with_content, &language, &rule_set_slug, &definition_slugs);
     
     // Find the current rule in the tree and get its children
     let child_rules = find_rule_in_tree(&full_tree, &rule.slug)
@@ -255,6 +299,7 @@ pub async fn show_rule(
             content_markdown: process_slug_references(
                 &content.content_markdown,
                 &slug_to_number,
+                &definition_slugs,
                 &language,
                 &rule_set_slug,
                 false, // Use full URLs in detail view
@@ -303,6 +348,7 @@ fn build_rule_tree(
     rules_with_content: Vec<(Rule, RuleContent)>,
     language: &str,
     rule_set_slug: &str,
+    definition_slugs: &HashMap<String, String>,
 ) -> Vec<RuleNode> {
     let mut nodes: HashMap<String, RuleNode> = HashMap::new();
     let mut children_map: HashMap<String, Vec<String>> = HashMap::new();
@@ -319,6 +365,7 @@ fn build_rule_tree(
         let processed_content = process_slug_references(
             &content.content_markdown,
             &slug_to_number,
+            definition_slugs,
             language,
             rule_set_slug,
             true, // Use anchor links in list view
@@ -423,7 +470,8 @@ mod tests {
             create_test_rule_with_content("rule_1", "1", "rule-1", "Rule 1 content", None),
         ];
 
-        let tree = build_rule_tree(rules, "en", "test-rules");
+        let definition_slugs = HashMap::new();
+        let tree = build_rule_tree(rules, "en", "test-rules", &definition_slugs);
 
         assert_eq!(tree.len(), 3);
         assert_eq!(tree[0].number, "1");
@@ -443,7 +491,8 @@ mod tests {
             create_test_rule_with_content("rule_1_1", "1.1", "rule-1-1", "Rule 1.1 content", Some("rule_1".to_string())),
         ];
 
-        let tree = build_rule_tree(rules, "en", "test-rules");
+        let definition_slugs = HashMap::new();
+        let tree = build_rule_tree(rules, "en", "test-rules", &definition_slugs);
 
         assert_eq!(tree.len(), 1);
         assert_eq!(tree[0].number, "1");
@@ -469,7 +518,8 @@ mod tests {
             create_test_rule_with_content("rule_1_2_1", "1.2.1", "rule-1-2-1", "Rule 1.2.1 content", Some("rule_1_2".to_string())),
         ];
 
-        let tree = build_rule_tree(rules, "en", "test-rules");
+        let definition_slugs = HashMap::new();
+        let tree = build_rule_tree(rules, "en", "test-rules", &definition_slugs);
 
         assert_eq!(tree.len(), 1);
         assert_eq!(tree[0].number, "1");
@@ -497,7 +547,8 @@ mod tests {
             create_test_rule_with_content("rule_1", "1", "rule-1", "Rule 1 content", None),
         ];
 
-        let tree = build_rule_tree(rules, "en", "test-rules");
+        let definition_slugs = HashMap::new();
+        let tree = build_rule_tree(rules, "en", "test-rules", &definition_slugs);
 
         assert_eq!(tree.len(), 3);
 
@@ -565,8 +616,10 @@ mod tests {
         slug_to_number.insert("handling-contested-calls".to_string(), "16.3".to_string());
         slug_to_number.insert("spirit-of-the-game".to_string(), "1".to_string());
         
+        let definition_slugs = HashMap::new(); // Empty for this test
+        
         let content = "If the opposition does not gain possession, apply {{rule:handling-contested-calls}} according to {{section:spirit-of-the-game}}.";
-        let processed = process_slug_references(content, &slug_to_number, "en", "wfdf-ultimate", false);
+        let processed = process_slug_references(content, &slug_to_number, &definition_slugs, "en", "wfdf-ultimate", false);
         
         let expected = "If the opposition does not gain possession, apply [16.3](/en/rules/wfdf-ultimate/handling-contested-calls) according to [Section 1](/en/rules/wfdf-ultimate/spirit-of-the-game).";
         assert_eq!(processed, expected);
@@ -578,8 +631,10 @@ mod tests {
         slug_to_number.insert("handling-contested-calls".to_string(), "16.3".to_string());
         slug_to_number.insert("spirit-of-the-game".to_string(), "1".to_string());
         
+        let definition_slugs = HashMap::new(); // Empty for this test
+        
         let content = "If the opposition does not gain possession, apply {{rule:handling-contested-calls}} according to {{section:spirit-of-the-game}}.";
-        let processed = process_slug_references(content, &slug_to_number, "en", "wfdf-ultimate", true);
+        let processed = process_slug_references(content, &slug_to_number, &definition_slugs, "en", "wfdf-ultimate", true);
         
         let expected = "If the opposition does not gain possession, apply [16.3](#handling-contested-calls) according to [Section 1](#spirit-of-the-game).";
         assert_eq!(processed, expected);
@@ -588,12 +643,27 @@ mod tests {
     #[test]
     fn test_process_slug_references_missing_slug() {
         let slug_to_number = HashMap::new();
+        let definition_slugs = HashMap::new();
         
         let content = "Apply {{nonexistent-rule}} here.";
-        let processed = process_slug_references(content, &slug_to_number, "en", "wfdf-ultimate", false);
+        let processed = process_slug_references(content, &slug_to_number, &definition_slugs, "en", "wfdf-ultimate", false);
         
         // Should keep original template if slug not found
         assert_eq!(processed, "Apply {{nonexistent-rule}} here.");
+    }
+
+    #[test]
+    fn test_process_slug_references_definitions() {
+        let slug_to_number = HashMap::new();
+        let mut definition_slugs = HashMap::new();
+        definition_slugs.insert("pass".to_string(), "Pass".to_string());
+        definition_slugs.insert("foul".to_string(), "Foul".to_string());
+        
+        let content = "A {{definition:pass}} is different from a {{definition:foul}}.";
+        let processed = process_slug_references(content, &slug_to_number, &definition_slugs, "en", "wfdf-ultimate", false);
+        
+        let expected = "A [Pass](/en/rules/wfdf-ultimate/definitions#pass) is different from a [Foul](/en/rules/wfdf-ultimate/definitions#foul).";
+        assert_eq!(processed, expected);
     }
 
 }
@@ -635,13 +705,26 @@ pub async fn definitions_page(
     // Get all glossary terms for this rule set and version
     let glossary_terms = repository.get_glossary_terms(&rule_set.id, &version.id)?;
 
+    // Build definition slug -> term name mapping for cross-reference processing
+    let definition_slugs = build_definition_slugs(&repository, &rule_set.id, &version.id);
+    
+    // Empty rule mapping since definitions don't reference rules typically
+    let slug_to_number = HashMap::new();
+
     // Convert to template data, sorting alphabetically by term
     let mut definitions: Vec<DefinitionItem> = glossary_terms
         .into_iter()
         .map(|(term, content)| DefinitionItem {
             term: content.term.clone(),
             slug: term.slug.clone(),
-            definition_html: content.definition_markdown.clone(), // Will be processed by markdown filter
+            definition_html: process_slug_references(
+                &content.definition_markdown,
+                &slug_to_number,
+                &definition_slugs,
+                &language,
+                &rule_set_slug,
+                false, // Use full URLs
+            ),
         })
         .collect();
 
