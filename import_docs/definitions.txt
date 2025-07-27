@@ -1,0 +1,57 @@
+Act of throwing: See [throwing motion](definition:throwing-motion).
+Affect the play: A breach or [call](definition:call) affects the play if it is reasonable to assume that the outcome of the specific [play](definition:play) may have been meaningfully different had the breach or [call](definition:call) not occurred.
+Attacking end zone: The [end zone](definition:end-zone) in which the team in question is currently attempting to score.
+Best perspective: The most complete viewpoint available by a [player](definition:player) that includes the relative position of the disc, [ground](definition:ground), players and [line](definition:line) markers involved in the [play](definition:play).
+Call: A clearly communicated statement that a foul, infraction, violation, [turnover](definition:turnover) or injury has occurred. The following terms may be used: Foul, Travel, specific name of Marking Infraction, Violation (or specific name of Violation), specific name of turnovers, Technical, and Injury.
+Catch: A non-spinning disc trapped between at least two body parts. If a [player](definition:player) initially catches a pass and then, prior to establishing [possession](definition:possession-of-the-disc), they do not maintain the [catch](definition:catch) ('maintain the [catch](definition:catch)' means to continue to have a non-spinning disc trapped between at least two body parts), that initial [catch](definition:catch) is deemed to have ended.
+Central zone: The area of the [playing field](definition:playing-field) including the [goal lines](definition:goal-line) but excluding the [end zones](definition:end-zone) and the [perimeter lines](definition:perimeter-lines).
+Defending end zone: The [end zone](definition:end-zone) in which the team in question is currently attempting to prevent the opposition from scoring.
+Defensive player: Any [player](definition:player) whose team is not in [possession of the disc](definition:possession-of-the-disc).
+End zone: One of the two areas at the end of the [playing field](definition:playing-field) where teams can score a goal by catching the disc there.
+Goal line: The [line](definition:line) separating the [central zone](definition:central-zone) from each [end zone](definition:end-zone). It is not part of the [end zone](definition:end-zone).
+Ground: The ground consists of all substantial solid objects, including grass, marker cones, equipment, water, trees, fences, walls and [non-players](definition:non-player), but excluding all players and their worn clothing, airborne particles and precipitation.
+Ground contact: Refers to all [player](definition:player) contact with the [ground](definition:ground) directly related to a specific event or manoeuvre, including landing or recovery after being off-balance (e.g., jumping, diving, leaning, or falling).
+Guarding: A defender is guarding an [offensive player](definition:offensive-player) when they are within three metres of that [offensive player](definition:offensive-player) and are primarily focused on and reacting to that [offensive player](definition:offensive-player).
+Interception: When a [player](definition:player) on the defensive team establishes [possession](definition:possession-of-the-disc) of a [throw](definition:throw) by a [player](definition:player) on the offensive team.
+Legitimate position: The stationary or moving position established by a [player](definition:player) that is not in breach of any rules.
+Line: A boundary defining the playing areas. On an unlined field, the boundary is defined as an imaginary line between two field markers with the thickness of said markers. Line segments are not extrapolated beyond the defining markers.
+Making a play on the disc: When the disc is in the air and a [player](definition:player) is attempting to make contact with the disc in any way e.g. to [catch](definition:catch) it or block it. This includes the process of running towards the place they expect to make contact with the disc.
+Marker: The [defensive player](definition:defensive-player) who may [call](definition:call) the stall count on the [thrower](definition:thrower).
+Minor contact: Contact that involves minimal physical force and does not alter the movements or position of another [player](definition:player).
+
+Contact with an opponent's extended arms or hands that are about to, or already are, contacting the disc, or contact to the [thrower's](definition:thrower) hand during the [throwing motion](definition:throwing-motion), is not considered to be [minor contact](definition:minor-contact).
+Non-player: Any person, including a team member, who is not currently a [player](definition:player).
+Offensive player: A [player](definition:player) whose team is in [possession of the disc](definition:possession-of-the-disc).
+Out-of-bounds (OB): Everything that is not part of the [playing field](definition:playing-field), including the [perimeter lines](definition:perimeter-lines).
+Perimeter lines: Lines separating the [central zone](definition:central-zone) or [end zone](definition:end-zone) from the [out-of-bounds](definition:out-of-bounds-ob) area. They are not part of the [playing field](definition:playing-field).
+Pivot: When the [thrower](definition:thrower) moves in any direction while keeping one part of their body in constant contact with a specific point on the [ground](definition:ground) called the pivot point.
+
+A [thrower](definition:thrower) establishes a pivot point by placing, or keeping, a particular part of their body at a specific point, which they intend to use as their pivot point. If a [thrower](definition:thrower) has multiple options for a pivot point, the pivot point is not determined until they [pivot](definition:pivot).
+Pivot Location: The point on the [playing field](definition:playing-field) where the [thrower](definition:thrower) is required to establish a pivot point after a [turnover](definition:turnover), after the [pull](definition:pull), after a time-out, after leaving the [central zone](definition:central-zone), or where a pivot point has already been established.
+Play: The time after the [Pull](definition:pull) has commenced and prior to the scoring of a goal. [Play](definition:play) may further stop due to a [call](definition:call), in which case [play](definition:play) is restarted with a check.
+Player: The people who are actually participating in the current point of [play](definition:play).
+Playing Field: The area including the [central zone](definition:central-zone) and the [end zones](definition:end-zone), but excluding the [perimeter lines](definition:perimeter-lines).
+Possession of the disc: A [player](definition:player) establishes possession of a pass when:
+
+    - they [catch](definition:catch) a pass and then they maintain that [catch](definition:catch) for more than one noticeable instant, and
+    - they maintain the [catch](definition:catch) throughout all [ground contact](definition:ground-contact) related to the [catch](definition:catch), or until they [throw](definition:throw) the disc
+
+A [player](definition:player) can also establish possession when a disc that has already hit the [ground](definition:ground) is picked up, or is given to them, after a [turnover](definition:turnover), [pull](definition:pull), or stoppage.
+
+Once a [player](definition:player) has established possession, they may change their grip on the disc and that does not affect their possession, as long as they maintain contact with the disc.
+
+A disc in the possession of a [player](definition:player), or caught by a [player](definition:player), is considered part of that [player](definition:player).
+
+The team whose [player](definition:player) is in possession or whose players may pick up the disc is considered the team in possession.
+Pre-stall: A warning regarding time limits to resume [play](definition:play), issued by giving warnings at twenty (20), ten (10), and five (5) seconds (as applicable)
+Pull: The [throw](definition:throw) by the defence to the offence that starts [play](definition:play) at the beginning of a half or after a goal. The [pull](definition:pull) is not considered a legal pass.
+Receivers: All [offensive players](definition:offensive-player) other than the [thrower](definition:thrower).
+Spirit stoppage: A [stoppage](definition:stoppage-of-play) to discuss issues related to Spirit of the Game.
+Stoppage of play: Any halting of [play](definition:play) due to a foul, violation, discussion, contested [call](definition:call), injury or time-out, that requires a check to restart [play](definition:play).
+Throw: A disc in flight following any [throwing motion](definition:throwing-motion), including after a fake attempt and an intentionally dropped disc, that results in loss of contact between the [thrower](definition:thrower) and the disc.
+
+A pass is the equivalent of a [throw](definition:throw).
+Thrower: The [offensive player](definition:offensive-player) in [possession of the disc](definition:possession-of-the-disc), or the [player](definition:player) who has just thrown the disc prior to when the result of the [throw](definition:throw) has been determined.
+Throwing motion: The throwing motion is the motion that transfers momentum from the [thrower](definition:thrower) to the disc in the direction of flight and results in a [throw](definition:throw). [Pivots](definition:pivot) and wind-ups are not part of the act of throwing.
+Turnover: Any event resulting in a change of the team in possession. A [turnover](definition:turnover) is not considered a violation.
+Where the disc stops: Refers to the location where a [player](definition:player) establishes [possession](definition:possession-of-the-disc), the disc comes to rest naturally, or where the disc is stopped from rolling or sliding.
