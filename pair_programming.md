@@ -152,6 +152,12 @@ This document outlines our pair programming workflow for building the Regelator 
 - **Complex problem breakdown**: Deciding the right level of abstraction
 - **Editorial decisions**: Document tone, structure, what information belongs where
 
+### Tasks Best Suited for External LLM Processing
+- **Content curation**: Cross-reference generation, definition linking, content enhancement
+- **Pattern recognition**: Complex linguistic analysis requiring context understanding
+- **One-time data transformation**: Processing existing content with semantic understanding
+- **Quality content generation**: Tasks requiring deep context and nuance beyond simple automation
+
 ### When Claude Should Hand Off to Human
 
 **Claude should stop making edit suggestions and instead prompt human to edit when:**
@@ -165,6 +171,21 @@ This document outlines our pair programming workflow for building the Regelator 
 - "This seems like a strategic decision - would you like to organize this content yourself?"
 - "I've suggested a few approaches, but this might be better suited for your editorial judgment"
 - "Rather than continue iterating, would you prefer to structure this document yourself?"
+
+### When Claude Should Suggest External LLM Processing
+
+**Claude should suggest ad-hoc LLM processing when:**
+- Content requires semantic understanding beyond regex patterns
+- Task involves complex linguistic analysis (overlapping terms, context-dependent meanings)
+- One-time data transformation that's expensive to implement in code
+- Content curation requiring human-like judgment about meaning and context
+- When implementing the feature properly would take significantly longer than LLM processing
+
+**Suggestion phrases Claude should use:**
+- "This content curation task might be faster with external LLM processing rather than building complex automation"
+- "Given the semantic complexity here, would you prefer to handle this with an LLM rather than implementing pattern matching?"
+- "This looks like a one-time content transformation - LLM processing might be more efficient than building custom logic"
+- "The linguistic analysis required here suggests external LLM processing could save significant development time"
 
 ## Communication Patterns
 
@@ -204,6 +225,13 @@ Claude: "Great! Marking Story X.Y as completed. Moving to next story..."
 - Propose 2-3 alternative approaches
 - Ask human for guidance
 
+### If Content Processing is Complex
+
+- Evaluate whether external LLM processing would be faster/better
+- Consider semantic complexity vs implementation effort
+- Suggest ad-hoc LLM processing for one-time content transformations
+- Document the decision rationale in `technical_considerations.md`
+
 ## Success Metrics
 
 - Stories completed per session
@@ -211,6 +239,7 @@ Claude: "Great! Marking Story X.Y as completed. Moving to next story..."
 - Quality of human verification feedback
 - Documentation completeness
 - Knowledge capture effectiveness
+- Appropriate tool selection (code vs external LLM processing vs manual work)
 
 ---
 

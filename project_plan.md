@@ -34,4 +34,14 @@ Master roadmap organizing development epics for the Ultimate Frisbee rules refer
 
 ---
 
-*Last Updated: 2025-07-24*
+## Epic 4: AI Features & Content Enhancement
+**Who**: Fred (federation coordinator), Valeria (experienced player), Nathan (new player)  
+**What**: AI-powered content processing, automatic cross-referencing, and intelligent rule assistance  
+**Why**: Automate tedious content curation tasks and provide intelligent assistance for rule comprehension  
+
+**Detail Plan**: `project_plan_ai_features.md`  
+**Status**: 📋 **Planned** (Backlog)
+
+---
+
+*Last Updated: 2025-07-27*

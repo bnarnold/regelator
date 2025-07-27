@@ -266,6 +266,41 @@ This document captures technical decisions, lessons learned, and implementation 
 - Import-time content processing more efficient than runtime processing
 - Regex alternation with maximal matching handles complex linguistic overlaps better than sequential processing
 
+**Strategic Pivot: External LLM Processing**
+- **Problem**: Complex semantic analysis (overlapping terms, context-dependent meanings) would require significant development effort
+- **Solution**: Used external LLM processing for one-time content transformation instead of building automation
+- **Result**: Cross-reference generation completed in hours vs weeks of complex regex development
+- **Key Insight**: Sometimes the most efficient path is external processing, not internal automation
+
+**When to Choose External LLM Processing:**
+- Semantic complexity exceeds simple pattern matching capabilities
+- One-time content transformation with high linguistic nuance
+- Development effort significantly exceeds LLM processing cost/time
+- Task requires human-like understanding of context and meaning
+
+---
+
+## Implementation Strategy Lessons
+
+### Tool Selection Framework
+**Always consider three approaches for complex tasks:**
+1. **Code Implementation**: Full programmatic solution
+2. **External LLM Processing**: Ad-hoc processing for one-time transformations
+3. **Manual Processing**: Human-driven approach
+
+**Decision Criteria:**
+- **Complexity**: How much semantic understanding is required?
+- **Frequency**: Is this a one-time task or recurring operation?
+- **Development Cost**: Implementation effort vs alternative approaches
+- **Maintenance**: Long-term support and update requirements
+
+### Content Processing Strategy
+**For content curation tasks:**
+- **Simple patterns**: Use regex and programmatic processing
+- **Complex semantics**: Consider external LLM processing first
+- **Recurring operations**: Build automation only if frequently needed
+- **Quality requirements**: LLM + human review often better than pure automation
+
 ---
 
 ## Future Technical Decisions
@@ -275,12 +310,14 @@ This document captures technical decisions, lessons learned, and implementation 
 2. Internationalization approach for multi-language support
 3. Caching strategy for rule content
 4. API versioning strategy
+5. **NEW**: When to build vs buy vs LLM-process for future content features
 
 ### Research needed:
 - Ultimate Frisbee rules data structure and format
 - Integration options for Telegram/Discord bots
 - Localization libraries for Rust web applications
+- **NEW**: Cost-benefit analysis framework for LLM processing vs development
 
 ---
 
-*Last updated: 2025-07-24*
+*Last updated: 2025-07-27*
