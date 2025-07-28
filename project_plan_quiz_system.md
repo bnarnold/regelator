@@ -49,19 +49,19 @@ This document tracks development of an interactive quiz system to help players l
 
 ## Stories Queue
 
-### Story 1: Database Schema & Models 🎯
+### Story 1: Database Schema & Models ✅
 **Goal:** Create database structure for quiz questions, answers, and user responses
 
 **Acceptance Criteria:**
-- [ ] Design quiz_questions table with question text, difficulty, rule references
-- [ ] Create quiz_answers table for multiple choice options with correct answer flag
-- [ ] Add quiz_attempts table to track user responses and timestamps (anonymized)
-- [ ] Create Diesel models for all quiz entities
-- [ ] Add database migration for quiz tables
-- [ ] Create repository methods for quiz data operations
-- [ ] Add foreign key relationships to rules and rule_sets
-- [ ] Support multiple languages for questions and answers
-- [ ] Include GDPR-compliant data retention policies
+- [x] Design quiz_questions table with question text, difficulty, rule references
+- [x] Create quiz_answers table for multiple choice options with correct answer flag
+- [x] Add quiz_attempts table to track user responses and timestamps (anonymized)
+- [x] Create Diesel models for all quiz entities
+- [x] Add database migration for quiz tables
+- [x] Create repository methods for quiz data operations
+- [x] Add foreign key relationships to rules and rule_sets
+- [x] Support multiple languages for questions and answers
+- [x] Include GDPR-compliant data retention policies
 
 **Database Schema Design:**
 ```sql
@@ -119,18 +119,18 @@ quiz_attempts:
 - Links questions to specific rules
 - Supports multiple rule versions
 
-### Story 2: Quiz Question Import System 🎯
+### Story 2: Quiz Question Import System ✅
 **Goal:** Create import system for quiz questions with multiple choice answers
 
 **Acceptance Criteria:**
-- [ ] Design import format for quiz questions and answers
-- [ ] Create `import_quiz_questions` binary for data import
-- [ ] Support question text, explanation, difficulty level, and rule reference
-- [ ] Handle multiple choice answers with correct answer designation
-- [ ] Validate question format and completeness during import
-- [ ] Link questions to existing rules via rule references
-- [ ] Add error handling for malformed quiz data
-- [ ] Create sample quiz data for testing
+- [x] Design import format for quiz questions and answers
+- [x] Create `import_quiz_questions` binary for data import
+- [x] Support question text, explanation, difficulty level, and rule reference
+- [x] Handle multiple choice answers with correct answer designation
+- [x] Validate question format and completeness during import
+- [x] Link questions to existing rules via rule references
+- [x] Add error handling for malformed quiz data
+- [x] Create sample quiz data for testing
 
 **Import Format Design:**
 ```
@@ -157,21 +157,21 @@ EXPLAIN: After a contested foul, play resumes with the stall count at the count 
 - Supports educational explanations
 - Validates question quality
 
-### Story 3: Basic Quiz Interface 🎯
+### Story 3: Basic Quiz Interface ✅
 **Goal:** Create web interface for taking random quiz questions
 
 **Acceptance Criteria:**
-- [ ] Add `/quiz` route for quiz landing page
-- [ ] Create random question selection endpoint
-- [ ] Design question display template with multiple choice options
-- [ ] Implement answer selection and submission
-- [ ] Show immediate feedback (correct/incorrect)
-- [ ] Display correct answer and explanation after submission
-- [ ] Add "Next Question" button to continue quiz
-- [ ] Include rule reference links in explanations
-- [ ] Style quiz interface with Pico CSS
-- [ ] Make interface mobile-friendly
-- [ ] Generate anonymous session IDs for tracking
+- [x] Add `/quiz` route for quiz landing page
+- [x] Create random question selection endpoint
+- [x] Design question display template with multiple choice options
+- [x] Implement answer selection and submission
+- [x] Show immediate feedback (correct/incorrect)
+- [x] Display correct answer and explanation after submission
+- [x] Add "Next Question" button to continue quiz
+- [x] Include rule reference links in explanations
+- [x] Style quiz interface with Pico CSS
+- [x] Make interface mobile-friendly
+- [x] Generate anonymous session IDs for tracking
 
 **UI Flow:**
 1. **Quiz Landing**: Welcome page with "Start Quiz" button

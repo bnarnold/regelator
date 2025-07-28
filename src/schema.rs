@@ -24,6 +24,52 @@ diesel::table! {
 }
 
 diesel::table! {
+    quiz_answers (id) {
+        id -> Text,
+        question_id -> Text,
+        answer_text -> Text,
+        is_correct -> Bool,
+        sort_order -> Integer,
+        created_at -> Text,
+        updated_at -> Text,
+    }
+}
+
+diesel::table! {
+    quiz_attempts (id) {
+        id -> Text,
+        session_id -> Text,
+        question_id -> Text,
+        selected_answer_id -> Nullable<Text>,
+        is_correct -> Nullable<Bool>,
+        response_time_ms -> Nullable<Integer>,
+        created_at -> Text,
+    }
+}
+
+diesel::table! {
+    quiz_question_rules (id) {
+        id -> Text,
+        question_id -> Text,
+        rule_id -> Text,
+        created_at -> Text,
+    }
+}
+
+diesel::table! {
+    quiz_questions (id) {
+        id -> Text,
+        rule_set_id -> Text,
+        version_id -> Text,
+        question_text -> Text,
+        explanation -> Text,
+        difficulty_level -> Text,
+        created_at -> Text,
+        updated_at -> Text,
+    }
+}
+
+diesel::table! {
     rule_content (id) {
         id -> Text,
         rule_id -> Text,
@@ -75,6 +121,13 @@ diesel::table! {
 diesel::joinable!(glossary_content -> glossary_terms (term_id));
 diesel::joinable!(glossary_terms -> rule_sets (rule_set_id));
 diesel::joinable!(glossary_terms -> versions (version_id));
+diesel::joinable!(quiz_answers -> quiz_questions (question_id));
+diesel::joinable!(quiz_attempts -> quiz_answers (selected_answer_id));
+diesel::joinable!(quiz_attempts -> quiz_questions (question_id));
+diesel::joinable!(quiz_question_rules -> quiz_questions (question_id));
+diesel::joinable!(quiz_question_rules -> rule_content (rule_id));
+diesel::joinable!(quiz_questions -> rule_sets (rule_set_id));
+diesel::joinable!(quiz_questions -> versions (version_id));
 diesel::joinable!(rule_content -> rules (rule_id));
 diesel::joinable!(rules -> rule_sets (rule_set_id));
 diesel::joinable!(rules -> versions (version_id));
@@ -83,6 +136,10 @@ diesel::joinable!(versions -> rule_sets (rule_set_id));
 diesel::allow_tables_to_appear_in_same_query!(
     glossary_content,
     glossary_terms,
+    quiz_answers,
+    quiz_attempts,
+    quiz_question_rules,
+    quiz_questions,
     rule_content,
     rule_sets,
     rules,

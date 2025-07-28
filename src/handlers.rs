@@ -1,15 +1,19 @@
+use crate::{
+    models::{NewQuizAttempt, Rule, RuleContent},
+    repository::RuleRepository,
+    AppError,
+};
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Form, Path, Query, State},
+    http::HeaderMap,
     response::Html,
 };
 use minijinja::Environment;
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use crate::{models::{Rule, RuleContent}, repository::RuleRepository, AppError};
-use std::collections::HashMap;
+use rand::seq::IndexedRandom;
 use regex::Regex;
-
-
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 #[derive(Deserialize)]
 pub struct VersionQuery {
@@ -126,7 +130,6 @@ pub async fn list_rules(
         .iter()
         .find(|rs| rs.slug == rule_set_slug)
         .ok_or_else(|| eyre::eyre!("Rule set '{}' not found", rule_set_slug))?;
-    
 
     // Build hierarchical tree structure
     let rule_tree = build_rule_tree(rules_with_content, &language, &rule_set_slug);
@@ -181,20 +184,19 @@ pub async fn show_rule(
 
     // Get all rules with content for this version and build the full tree
     let all_rules_with_content = repo.get_rules_with_content_for_version(&version.id, &language)?;
-    
+
     // Build slug -> number mapping for processing rule content
     let slug_to_number: HashMap<String, String> = all_rules_with_content
         .iter()
         .map(|(rule, _)| (rule.slug.clone(), rule.number.clone()))
         .collect();
-    
+
     // Get rule set info to build definition slug mapping
     let rule_sets = repo.get_rule_sets()?;
     let rule_set = rule_sets
         .iter()
         .find(|rs| rs.slug == rule_set_slug)
         .ok_or_else(|| eyre::eyre!("Rule set '{}' not found", rule_set_slug))?;
-    
 
     // Get parent rule if it exists
     let parent_rule = if let Some(parent_id) = &rule.parent_rule_id {
@@ -216,9 +218,9 @@ pub async fn show_rule(
     } else {
         None
     };
-    
+
     let full_tree = build_rule_tree(all_rules_with_content, &language, &rule_set_slug);
-    
+
     // Find the current rule in the tree and get its children
     let child_rules = find_rule_in_tree(&full_tree, &rule.slug)
         .map(|node| node.children.clone())
@@ -289,7 +291,7 @@ fn build_rule_tree(
     // Create all nodes and build children mapping
     for (rule, content) in &rules_with_content {
         let processed_content = content.content_markdown.clone();
-        
+
         let node = RuleNode {
             number: rule.number.clone(),
             slug: rule.slug.clone(),
@@ -344,7 +346,13 @@ fn build_rule_tree(
 mod tests {
     use super::*;
 
-    fn create_test_rule_with_content(id: &str, number: &str, slug: &str, content: &str, parent_id: Option<String>) -> (Rule, RuleContent) {
+    fn create_test_rule_with_content(
+        id: &str,
+        number: &str,
+        slug: &str,
+        content: &str,
+        parent_id: Option<String>,
+    ) -> (Rule, RuleContent) {
         let rule = Rule {
             id: id.to_string(),
             slug: slug.to_string(),
@@ -361,7 +369,7 @@ mod tests {
                 .and_hms_opt(0, 0, 0)
                 .unwrap(),
         };
-        
+
         let rule_content = RuleContent {
             id: format!("{}_content", id),
             rule_id: id.to_string(),
@@ -377,7 +385,7 @@ mod tests {
                 .and_hms_opt(0, 0, 0)
                 .unwrap(),
         };
-        
+
         (rule, rule_content)
     }
 
@@ -404,9 +412,27 @@ mod tests {
     fn test_rule_tree_sorting_hierarchical() {
         let rules = vec![
             create_test_rule_with_content("rule_1", "1", "rule-1", "Rule 1 content", None),
-            create_test_rule_with_content("rule_1_10", "1.10", "rule-1-10", "Rule 1.10 content", Some("rule_1".to_string())),
-            create_test_rule_with_content("rule_1_2", "1.2", "rule-1-2", "Rule 1.2 content", Some("rule_1".to_string())),
-            create_test_rule_with_content("rule_1_1", "1.1", "rule-1-1", "Rule 1.1 content", Some("rule_1".to_string())),
+            create_test_rule_with_content(
+                "rule_1_10",
+                "1.10",
+                "rule-1-10",
+                "Rule 1.10 content",
+                Some("rule_1".to_string()),
+            ),
+            create_test_rule_with_content(
+                "rule_1_2",
+                "1.2",
+                "rule-1-2",
+                "Rule 1.2 content",
+                Some("rule_1".to_string()),
+            ),
+            create_test_rule_with_content(
+                "rule_1_1",
+                "1.1",
+                "rule-1-1",
+                "Rule 1.1 content",
+                Some("rule_1".to_string()),
+            ),
         ];
 
         let tree = build_rule_tree(rules, "en", "test-rules");
@@ -429,10 +455,34 @@ mod tests {
     fn test_rule_tree_sorting_deep_hierarchy() {
         let rules = vec![
             create_test_rule_with_content("rule_1", "1", "rule-1", "Rule 1 content", None),
-            create_test_rule_with_content("rule_1_2", "1.2", "rule-1-2", "Rule 1.2 content", Some("rule_1".to_string())),
-            create_test_rule_with_content("rule_1_2_10", "1.2.10", "rule-1-2-10", "Rule 1.2.10 content", Some("rule_1_2".to_string())),
-            create_test_rule_with_content("rule_1_2_2", "1.2.2", "rule-1-2-2", "Rule 1.2.2 content", Some("rule_1_2".to_string())),
-            create_test_rule_with_content("rule_1_2_1", "1.2.1", "rule-1-2-1", "Rule 1.2.1 content", Some("rule_1_2".to_string())),
+            create_test_rule_with_content(
+                "rule_1_2",
+                "1.2",
+                "rule-1-2",
+                "Rule 1.2 content",
+                Some("rule_1".to_string()),
+            ),
+            create_test_rule_with_content(
+                "rule_1_2_10",
+                "1.2.10",
+                "rule-1-2-10",
+                "Rule 1.2.10 content",
+                Some("rule_1_2".to_string()),
+            ),
+            create_test_rule_with_content(
+                "rule_1_2_2",
+                "1.2.2",
+                "rule-1-2-2",
+                "Rule 1.2.2 content",
+                Some("rule_1_2".to_string()),
+            ),
+            create_test_rule_with_content(
+                "rule_1_2_1",
+                "1.2.1",
+                "rule-1-2-1",
+                "Rule 1.2.1 content",
+                Some("rule_1_2".to_string()),
+            ),
         ];
 
         let tree = build_rule_tree(rules, "en", "test-rules");
@@ -458,8 +508,20 @@ mod tests {
         let rules = vec![
             create_test_rule_with_content("rule_10", "10", "rule-10", "Rule 10 content", None),
             create_test_rule_with_content("rule_2", "2", "rule-2", "Rule 2 content", None),
-            create_test_rule_with_content("rule_2_10", "2.10", "rule-2-10", "Rule 2.10 content", Some("rule_2".to_string())),
-            create_test_rule_with_content("rule_2_1", "2.1", "rule-2-1", "Rule 2.1 content", Some("rule_2".to_string())),
+            create_test_rule_with_content(
+                "rule_2_10",
+                "2.10",
+                "rule-2-10",
+                "Rule 2.10 content",
+                Some("rule_2".to_string()),
+            ),
+            create_test_rule_with_content(
+                "rule_2_1",
+                "2.1",
+                "rule-2-1",
+                "Rule 2.1 content",
+                Some("rule_2".to_string()),
+            ),
             create_test_rule_with_content("rule_1", "1", "rule-1", "Rule 1 content", None),
         ];
 
@@ -524,8 +586,6 @@ mod tests {
         assert_eq!(nodes[1].children[1].number, "10.10");
         assert_eq!(nodes[1].children[1].content, "Rule 10.10 content");
     }
-
-
 }
 
 /// Data structure for passing glossary terms to templates
@@ -589,4 +649,193 @@ pub async fn definitions_page(
     let response = template.render(&template_data)?;
 
     Ok(Html(response))
+}
+
+// Quiz handlers
+
+#[derive(Serialize)]
+struct QuizLandingData {
+    // Empty for now - just a simple start page
+}
+
+#[derive(Serialize)]
+struct QuizQuestionData {
+    question_id: String,
+    question_text: String,
+    difficulty_level: String,
+    answers: Vec<QuizAnswerData>,
+    session_id: String,
+}
+
+#[derive(Serialize)]
+struct QuizAnswerData {
+    id: String,
+    answer_text: String,
+}
+
+#[derive(Serialize)]
+struct QuizResultData {
+    question_id: String,
+    question_text: String,
+    difficulty_level: String,
+    answers: Vec<QuizAnswerWithResult>,
+    selected_answer_id: String,
+    is_correct: bool,
+    explanation: String,
+    session_id: String,
+}
+
+#[derive(Serialize)]
+struct QuizAnswerWithResult {
+    id: String,
+    answer_text: String,
+    is_correct: bool,
+    was_selected: bool,
+}
+
+#[derive(Deserialize)]
+pub struct QuizSubmission {
+    question_id: String,
+    answer_id: String,
+    session_id: String,
+}
+
+/// Quiz landing page
+pub async fn quiz_landing(
+    State(template_env): State<Arc<Environment<'static>>>,
+) -> Result<Html<String>, AppError> {
+    let template_data = QuizLandingData {};
+
+    let template = template_env.get_template("quiz_landing.html")?;
+    let response = template.render(&template_data)?;
+
+    Ok(Html(response))
+}
+
+/// Get a random quiz question
+pub async fn random_quiz_question(
+    State(repository): State<RuleRepository>,
+    State(template_env): State<Arc<Environment<'static>>>,
+    headers: HeaderMap,
+) -> Result<Html<String>, AppError> {
+    // Get session ID from cookie or create new one
+    let session_id = get_or_create_session_id(&headers);
+
+    // Get rule set and version (hardcoded for now)
+    let rule_set_slug = "wfdf-ultimate";
+
+    let rule_sets = repository.get_rule_sets()?;
+    let rule_set = rule_sets
+        .iter()
+        .find(|rs| rs.slug == rule_set_slug)
+        .ok_or_else(|| AppError(eyre::eyre!("Rule set not found")))?;
+
+    let version = repository
+        .get_current_version(rule_set_slug)?
+        .ok_or_else(|| AppError(eyre::eyre!("No current version found")))?;
+
+    // Get all questions for this rule set/version
+    let questions = repository.get_quiz_questions(&rule_set.id, &version.id)?;
+
+    if questions.is_empty() {
+        return Err(AppError(eyre::eyre!("No quiz questions found")));
+    }
+
+    // Select random question (simple approach for now)
+    let mut rng = rand::rng();
+    let selected_question = questions
+        .choose(&mut rng)
+        .ok_or_else(|| AppError(eyre::eyre!("Failed to select random question")))?;
+
+    // Get answers for this question
+    let db_answers = repository.get_quiz_answers(&selected_question.id)?;
+
+    // Convert to handler-specific structs
+    let answers = db_answers
+        .iter()
+        .map(|a| QuizAnswerData {
+            id: a.id.clone(),
+            answer_text: a.answer_text.clone(),
+        })
+        .collect();
+
+    let template_data = QuizQuestionData {
+        question_id: selected_question.id.clone(),
+        question_text: selected_question.question_text.clone(),
+        difficulty_level: selected_question.difficulty_level.clone(),
+        answers,
+        session_id,
+    };
+
+    let template = template_env.get_template("quiz_question.html")?;
+    let response = template.render(&template_data)?;
+
+    Ok(Html(response))
+}
+
+/// Submit quiz answer and show results
+pub async fn submit_quiz_answer(
+    State(repository): State<RuleRepository>,
+    State(template_env): State<Arc<Environment<'static>>>,
+    Form(submission): Form<QuizSubmission>,
+) -> Result<Html<String>, AppError> {
+    // Get the question by ID
+    let question = repository
+        .get_quiz_question_by_id(&submission.question_id)?
+        .ok_or_else(|| AppError(eyre::eyre!("Question not found")))?;
+
+    let answers = repository.get_quiz_answers(&submission.question_id)?;
+
+    // Find selected answer and check if correct
+    let selected_answer = answers
+        .iter()
+        .find(|a| a.id == submission.answer_id)
+        .ok_or_else(|| AppError(eyre::eyre!("Answer not found")))?;
+
+    let is_correct = selected_answer.is_correct;
+
+    // Record the attempt
+    let attempt = NewQuizAttempt::new(
+        submission.session_id.clone(),
+        submission.question_id.clone(),
+        Some(submission.answer_id.clone()),
+        Some(is_correct),
+        None, // No timing for now
+    );
+
+    repository.create_quiz_attempt(&attempt)?;
+
+    // Prepare answer data with selection markers
+    let answers_with_result: Vec<QuizAnswerWithResult> = answers
+        .iter()
+        .map(|a| QuizAnswerWithResult {
+            id: a.id.clone(),
+            answer_text: a.answer_text.clone(),
+            is_correct: a.is_correct,
+            was_selected: a.id == submission.answer_id,
+        })
+        .collect();
+
+    let template_data = QuizResultData {
+        question_id: question.id.clone(),
+        question_text: question.question_text.clone(),
+        difficulty_level: question.difficulty_level.clone(),
+        answers: answers_with_result,
+        selected_answer_id: submission.answer_id,
+        is_correct,
+        explanation: question.explanation.clone(),
+        session_id: submission.session_id,
+    };
+
+    let template = template_env.get_template("quiz_result.html")?;
+    let response = template.render(&template_data)?;
+
+    Ok(Html(response))
+}
+
+/// Get or create session ID from headers
+fn get_or_create_session_id(_headers: &HeaderMap) -> String {
+    // For now, just generate a new session ID each time
+    // In a real app, we'd check for a session cookie
+    uuid::Uuid::now_v7().to_string()
 }

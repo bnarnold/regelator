@@ -77,6 +77,53 @@ pub struct GlossaryContent {
     pub updated_at: chrono::NaiveDateTime,
 }
 
+// Quiz models
+#[derive(Queryable, Selectable, Debug, Clone)]
+#[diesel(table_name = quiz_questions)]
+pub struct QuizQuestion {
+    pub id: String,
+    pub rule_set_id: String,
+    pub version_id: String,
+    pub question_text: String,
+    pub explanation: String,
+    pub difficulty_level: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Queryable, Selectable, Debug, Clone)]
+#[diesel(table_name = quiz_answers)]
+pub struct QuizAnswer {
+    pub id: String,
+    pub question_id: String,
+    pub answer_text: String,
+    pub is_correct: bool,
+    pub sort_order: i32,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Queryable, Selectable, Debug, Clone)]
+#[diesel(table_name = quiz_question_rules)]
+pub struct QuizQuestionRule {
+    pub id: String,
+    pub question_id: String,
+    pub rule_id: String,
+    pub created_at: String,
+}
+
+#[derive(Queryable, Selectable, Debug, Clone)]
+#[diesel(table_name = quiz_attempts)]
+pub struct QuizAttempt {
+    pub id: String,
+    pub session_id: String,
+    pub question_id: String,
+    pub selected_answer_id: Option<String>,
+    pub is_correct: Option<bool>,
+    pub response_time_ms: Option<i32>,
+    pub created_at: String,
+}
+
 // Insertable structs (for creating new records)
 #[derive(Insertable, Debug)]
 #[diesel(table_name = rule_sets)]
@@ -137,6 +184,47 @@ pub struct NewGlossaryContent {
     pub language: String,
     pub term: String,
     pub definition_markdown: String,
+}
+
+// Quiz insertable structs
+#[derive(Insertable, Debug)]
+#[diesel(table_name = quiz_questions)]
+pub struct NewQuizQuestion {
+    pub id: String,
+    pub rule_set_id: String,
+    pub version_id: String,
+    pub question_text: String,
+    pub explanation: String,
+    pub difficulty_level: String,
+}
+
+#[derive(Insertable, Debug)]
+#[diesel(table_name = quiz_answers)]
+pub struct NewQuizAnswer {
+    pub id: String,
+    pub question_id: String,
+    pub answer_text: String,
+    pub is_correct: bool,
+    pub sort_order: i32,
+}
+
+#[derive(Insertable, Debug)]
+#[diesel(table_name = quiz_question_rules)]
+pub struct NewQuizQuestionRule {
+    pub id: String,
+    pub question_id: String,
+    pub rule_id: String,
+}
+
+#[derive(Insertable, Debug)]
+#[diesel(table_name = quiz_attempts)]
+pub struct NewQuizAttempt {
+    pub id: String,
+    pub session_id: String,
+    pub question_id: String,
+    pub selected_answer_id: Option<String>,
+    pub is_correct: Option<bool>,
+    pub response_time_ms: Option<i32>,
 }
 
 // Helper functions for generating UUIDs
@@ -237,5 +325,150 @@ impl NewGlossaryContent {
             term,
             definition_markdown,
         }
+    }
+}
+
+impl NewQuizQuestion {
+    pub fn new(
+        rule_set_id: String,
+        version_id: String,
+        question_text: String,
+        explanation: String,
+        difficulty_level: String,
+    ) -> Self {
+        Self {
+            id: Uuid::now_v7().to_string(),
+            rule_set_id,
+            version_id,
+            question_text,
+            explanation,
+            difficulty_level,
+        }
+    }
+}
+
+impl NewQuizAnswer {
+    pub fn new(
+        question_id: String,
+        answer_text: String,
+        is_correct: bool,
+        sort_order: i32,
+    ) -> Self {
+        Self {
+            id: Uuid::now_v7().to_string(),
+            question_id,
+            answer_text,
+            is_correct,
+            sort_order,
+        }
+    }
+}
+
+impl NewQuizQuestionRule {
+    pub fn new(question_id: String, rule_id: String) -> Self {
+        Self {
+            id: Uuid::now_v7().to_string(),
+            question_id,
+            rule_id,
+        }
+    }
+}
+
+impl NewQuizAttempt {
+    pub fn new(
+        session_id: String,
+        question_id: String,
+        selected_answer_id: Option<String>,
+        is_correct: Option<bool>,
+        response_time_ms: Option<i32>,
+    ) -> Self {
+        Self {
+            id: Uuid::now_v7().to_string(),
+            session_id,
+            question_id,
+            selected_answer_id,
+            is_correct,
+            response_time_ms,
+        }
+    }
+}
+
+// Business layer structs for quiz operations
+
+/// Business layer representation of a quiz answer
+#[derive(Debug, Clone)]
+pub struct QuizAnswerData {
+    pub answer_text: String,
+    pub is_correct: bool,
+}
+
+/// Business layer representation of a complete quiz question for creation
+#[derive(Debug, Clone)]
+pub struct QuizQuestionData {
+    pub rule_set_id: String,
+    pub version_id: String,
+    pub question_text: String,
+    pub explanation: String,
+    pub difficulty_level: String,
+    pub answers: Vec<QuizAnswerData>,
+    pub rule_ids: Vec<String>, // Rule IDs this question references
+}
+
+impl QuizQuestionData {
+    pub fn new(
+        rule_set_id: String,
+        version_id: String,
+        question_text: String,
+        explanation: String,
+        difficulty_level: String,
+        answers: Vec<QuizAnswerData>,
+        rule_ids: Vec<String>,
+    ) -> Self {
+        Self {
+            rule_set_id,
+            version_id,
+            question_text,
+            explanation,
+            difficulty_level,
+            answers,
+            rule_ids,
+        }
+    }
+
+    /// Convert to database entities for creation
+    pub fn to_database_entities(&self) -> (NewQuizQuestion, Vec<NewQuizAnswer>, Vec<NewQuizQuestionRule>) {
+        let question_id = uuid::Uuid::now_v7().to_string();
+        
+        let question = NewQuizQuestion {
+            id: question_id.clone(),
+            rule_set_id: self.rule_set_id.clone(),
+            version_id: self.version_id.clone(),
+            question_text: self.question_text.clone(),
+            explanation: self.explanation.clone(),
+            difficulty_level: self.difficulty_level.clone(),
+        };
+
+        let answers: Vec<NewQuizAnswer> = self.answers
+            .iter()
+            .enumerate()
+            .map(|(index, answer)| NewQuizAnswer {
+                id: uuid::Uuid::now_v7().to_string(),
+                question_id: question_id.clone(),
+                answer_text: answer.answer_text.clone(),
+                is_correct: answer.is_correct,
+                sort_order: index as i32,
+            })
+            .collect();
+
+        let rule_links: Vec<NewQuizQuestionRule> = self.rule_ids
+            .iter()
+            .map(|rule_id| NewQuizQuestionRule {
+                id: uuid::Uuid::now_v7().to_string(),
+                question_id: question_id.clone(),
+                rule_id: rule_id.clone(),
+            })
+            .collect();
+
+        (question, answers, rule_links)
     }
 }

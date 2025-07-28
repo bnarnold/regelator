@@ -420,4 +420,152 @@ impl RuleRepository {
 
         Ok(result)
     }
+
+    // Quiz repository methods
+
+    /// Create a complete quiz question with answers and rule links in a transaction
+    pub fn create_quiz_question_complete(&self, question_data: &crate::models::QuizQuestionData) -> Result<QuizQuestion> {
+        use crate::schema::quiz_answers::dsl as qa_dsl;
+        use crate::schema::quiz_question_rules::dsl as qqr_dsl;
+        use crate::schema::quiz_questions::dsl as qq_dsl;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        let (question, answers, rule_links) = question_data.to_database_entities();
+
+        conn.transaction::<_, diesel::result::Error, _>(|conn| {
+            // Insert the question
+            diesel::insert_into(qq_dsl::quiz_questions)
+                .values(&question)
+                .execute(conn)?;
+
+            // Insert all answers
+            if !answers.is_empty() {
+                diesel::insert_into(qa_dsl::quiz_answers)
+                    .values(&answers)
+                    .execute(conn)?;
+            }
+
+            // Insert rule links
+            if !rule_links.is_empty() {
+                diesel::insert_into(qqr_dsl::quiz_question_rules)
+                    .values(&rule_links)
+                    .execute(conn)?;
+            }
+
+            Ok(())
+        })
+        .wrap_err("Failed to create quiz question with transaction")?;
+
+        // Return the created question
+        let result = qq_dsl::quiz_questions
+            .filter(qq_dsl::id.eq(&question.id))
+            .select(QuizQuestion::as_select())
+            .first(&mut conn)
+            .wrap_err("Failed to load created quiz question")?;
+
+        Ok(result)
+    }
+
+    /// Get quiz questions for a rule set and version
+    pub fn get_quiz_questions(&self, rule_set_id_param: &str, version_id_param: &str) -> Result<Vec<QuizQuestion>> {
+        use crate::schema::quiz_questions::dsl::*;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        let results = quiz_questions
+            .filter(rule_set_id.eq(rule_set_id_param))
+            .filter(version_id.eq(version_id_param))
+            .select(QuizQuestion::as_select())
+            .load(&mut conn)
+            .wrap_err("Failed to load quiz questions")?;
+
+        Ok(results)
+    }
+
+    /// Get a specific quiz question by ID
+    pub fn get_quiz_question_by_id(&self, question_id_param: &str) -> Result<Option<QuizQuestion>> {
+        use crate::schema::quiz_questions::dsl::*;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        let result = quiz_questions
+            .filter(id.eq(question_id_param))
+            .select(QuizQuestion::as_select())
+            .first(&mut conn)
+            .optional()
+            .wrap_err("Failed to load quiz question")?;
+
+        Ok(result)
+    }
+
+    /// Get quiz answers for a question
+    pub fn get_quiz_answers(&self, question_id_param: &str) -> Result<Vec<QuizAnswer>> {
+        use crate::schema::quiz_answers::dsl::*;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        let results = quiz_answers
+            .filter(question_id.eq(question_id_param))
+            .order(sort_order.asc())
+            .select(QuizAnswer::as_select())
+            .load(&mut conn)
+            .wrap_err("Failed to load quiz answers")?;
+
+        Ok(results)
+    }
+
+    /// Record a quiz attempt
+    pub fn create_quiz_attempt(&self, attempt: &NewQuizAttempt) -> Result<QuizAttempt> {
+        use crate::schema::quiz_attempts::dsl::*;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        diesel::insert_into(quiz_attempts)
+            .values(attempt)
+            .execute(&mut conn)
+            .wrap_err("Failed to create quiz attempt")?;
+
+        let result = quiz_attempts
+            .filter(id.eq(&attempt.id))
+            .select(QuizAttempt::as_select())
+            .first(&mut conn)
+            .wrap_err("Failed to load created quiz attempt")?;
+
+        Ok(result)
+    }
+
+    /// Get quiz attempts for a session
+    pub fn get_session_attempts(&self, session_id_param: &str) -> Result<Vec<QuizAttempt>> {
+        use crate::schema::quiz_attempts::dsl::*;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        let results = quiz_attempts
+            .filter(session_id.eq(session_id_param))
+            .order(created_at.desc())
+            .select(QuizAttempt::as_select())
+            .load(&mut conn)
+            .wrap_err("Failed to load session attempts")?;
+
+        Ok(results)
+    }
 }

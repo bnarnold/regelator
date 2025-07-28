@@ -2,7 +2,7 @@ use axum::{
     extract::{FromRef, State},
     http::{header, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use diesel::{
@@ -168,6 +168,9 @@ async fn main() {
             "/{language}/rules/{rule_set}/{rule_slug}",
             get(handlers::show_rule),
         )
+        .route("/quiz", get(handlers::quiz_landing))
+        .route("/quiz/question", get(handlers::random_quiz_question))
+        .route("/quiz/submit", post(handlers::submit_quiz_answer))
         .nest_service(
             "/static",
             SetResponseHeaderLayer::if_not_present(

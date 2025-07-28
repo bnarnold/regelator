@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz Question - Ultimate Frisbee Rules{% endblock %}
+
+{% block content %}
+<main class="container">
+    <header>
+        <nav>
+            <ul>
+                <li><a href="/quiz">← Back to Quiz</a></li>
+            </ul>
+            <ul>
+                <li><small>Difficulty: <mark>{{ difficulty_level | title }}</mark></small></li>
+            </ul>
+        </nav>
+        <h1>Quiz Question</h1>
+    </header>
+
+    <section>
+        <article>
+            <header>
+                <h2>{{ question_text }}</h2>
+            </header>
+            
+            <form action="/quiz/submit" method="post">
+                <input type="hidden" name="question_id" value="{{ question_id }}">
+                <input type="hidden" name="session_id" value="{{ session_id }}">
+                
+                <fieldset>
+                    <legend>Select your answer:</legend>
+                    {% for answer in answers %}
+                    <label>
+                        <input type="radio" name="answer_id" value="{{ answer.id }}" required>
+                        {{ answer.answer_text }}
+                    </label>
+                    {% endfor %}
+                </fieldset>
+                
+                <div style="text-align: center; margin-top: 2rem;">
+                    <button type="submit" class="contrast">Submit Answer</button>
+                </div>
+            </form>
+        </article>
+    </section>
+
+    <footer>
+        <p><small>Choose the best answer based on the Ultimate Frisbee rules. You'll get immediate feedback with explanations.</small></p>
+    </footer>
+</main>
+{% endblock %}

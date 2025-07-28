@@ -1,0 +1,55 @@
+Q: [BEGINNER] What is the primary objective in Ultimate Frisbee?
+REF: 1.1
+A: Score points by catching the disc in the opposing end zone [CORRECT]
+A: Prevent the other team from touching the disc
+A: Keep possession of the disc for as long as possible
+A: Complete the most passes in a single point
+EXPLAIN: The objective of Ultimate is to score points by catching the disc in the end zone you are attacking, as stated in Section 1.
+
+Q: [INTERMEDIATE] When does a stall count resume after a contested foul?
+REF: 9.5.1
+A: At stall count zero
+A: At the count when the foul occurred [CORRECT]
+A: At stall count six
+A: After a check between players
+EXPLAIN: After a contested foul, play resumes with the stall count at the count when the foul occurred, according to 9.5.1.
+
+Q: [ADVANCED] After a contested travel infraction where the thrower had already released the disc, and the pass was incomplete, what is the correct stall count when play resumes?
+REF: 18.2.7
+A: Stalling one (1)
+A: Stalling six (6)
+A: The turnover stands - no stall count [CORRECT]
+A: Stalling eight (8)
+EXPLAIN: According to 18.2.7, "If, after a travel infraction, the thrower throws an incomplete pass, play continues." Since the pass was incomplete, the turnover stands regardless of whether the travel was contested. There is no stall count because the defense now has possession. This highlights how infractions (which don't stop play) interact differently with turnovers compared to violations.
+
+Q: [ADVANCED] A defender intercepts a pass but then immediately drops the disc before establishing possession. Another defensive player picks up the disc. What must happen?
+REF: 13.5.1, 13.6
+A: The player who picked up the disc may establish possession
+A: The original intercepting player must re-establish possession [CORRECT]
+A: It's a turnover back to the offense
+A: The disc returns to the original thrower
+EXPLAIN: 13.5.1 states that after an "interception" turnover, "the player who made the interception must maintain possession." Even though the intercepting player dropped the disc, they are still required to establish possession. 13.6 reinforces this: if they intentionally drop it, "they must re-establish possession and restart play with a check." This shows how turnover rules can override normal possession rules.
+
+Q: [ADVANCED] A receiver catches the disc while airborne in their attacking end zone, but is fouled by a defender during the catch. The contact causes the receiver's first ground contact to be one foot in the end zone and one foot in the central zone. If the foul is accepted, what happens?
+REF: 17.5.1.2, 17.5.2
+A: Goal is awarded [CORRECT]
+A: Receiver establishes possession at the goal line
+A: Disc returns to the thrower
+A: Receiver establishes possession where they landed
+EXPLAIN: This is a Force-out Foul under 17.5.1.2 - the contact caused the receiver "to catch the disc in the central zone instead of their attacking end zone." According to 17.5.2, "If the receiver would have caught the disc in their attacking end zone, it is a goal." The key is understanding that force-out fouls are evaluated based on where the player would have landed without the foul, not where they actually landed.
+
+Q: [ADVANCED] During a stoppage for a pick violation, a defender moves to their new position but continues moving as the disc is checked in. The thrower immediately throws a completion. What happens?
+REF: 10.7.3, 10.7.5
+A: The pass stands because movement during repositioning is allowed
+A: Pick violation stands, disc returns to thrower
+A: Check violation is called, disc returns to thrower regardless of completion [CORRECT]
+A: Both violations offset, play continues from current position
+EXPLAIN: According to 10.7.3, a player may call a violation if an opponent "is moving immediately prior to the check." 10.7.5 states that after this violation call, "any pass does not count regardless of whether it is complete or incomplete, and possession reverts back to the thrower." This demonstrates how check violations can supersede the original call and create a stricter penalty than the original violation would have.
+
+Q: [ADVANCED] The pull lands in-bounds, then rolls out-of-bounds at the back of the end zone. An offensive player signals for a brick, then picks up the disc. Where must they establish their pivot?
+REF: 7.12, 7.11
+A: At the brick mark
+A: Where the disc crossed the perimeter line in the end zone
+A: Where the disc crossed the perimeter line, or nearest point in central zone [CORRECT]
+A: They can choose between brick mark or perimeter crossing
+EXPLAIN: 7.12 states the brick option is only available "If the disc contacts the out-of-bounds area without first touching the playing field." Since this disc touched in-bounds first, the brick option is not available even though it was signaled. According to 7.11, the thrower must establish a pivot "where the disc first crossed the perimeter line, or the nearest location in the central zone if that pivot point would be in their defending end zone." The signal doesn't override the rule requirements, showing how timing and sequence matter in rule application.

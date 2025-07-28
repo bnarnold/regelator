@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz Result - Ultimate Frisbee Rules{% endblock %}
+
+{% block content %}
+<main class="container">
+    <header>
+        <nav>
+            <ul>
+                <li><a href="/quiz">← Back to Quiz</a></li>
+            </ul>
+            <ul>
+                <li><small>Difficulty: <mark>{{ difficulty_level | title }}</mark></small></li>
+            </ul>
+        </nav>
+        <h1>Quiz Result</h1>
+    </header>
+
+    <section>
+        <article>
+            <header>
+                <h2>{{ question_text }}</h2>
+            </header>
+
+            {% if is_correct %}
+            <div style="padding: 1rem; background-color: var(--pico-color-green-100); border-left: 4px solid var(--pico-color-green-500); margin: 1rem 0;">
+                <h3 style="color: var(--pico-color-green-700); margin: 0 0 0.5rem 0;">✓ Correct!</h3>
+                <p style="margin: 0; color: var(--pico-color-green-700);">Great job! You selected the right answer.</p>
+            </div>
+            {% else %}
+            <div style="padding: 1rem; background-color: var(--pico-color-red-100); border-left: 4px solid var(--pico-color-red-500); margin: 1rem 0;">
+                <h3 style="color: var(--pico-color-red-700); margin: 0 0 0.5rem 0;">✗ Incorrect</h3>
+                <p style="margin: 0; color: var(--pico-color-red-700);">Not quite right. Check the explanation below to learn more.</p>
+            </div>
+            {% endif %}
+
+            <div>
+                <h3>Answer Options:</h3>
+                <ul style="list-style: none; padding: 0;">
+                    {% for answer in answers %}
+                    <li style="margin: 0.5rem 0; padding: 0.5rem; border-radius: 4px; 
+                        {% if answer.is_correct %}background-color: var(--pico-color-green-100); border-left: 4px solid var(--pico-color-green-500);
+                        {% elif answer.was_selected %}background-color: var(--pico-color-red-100); border-left: 4px solid var(--pico-color-red-500);
+                        {% else %}background-color: var(--pico-background-color);{% endif %}">
+                        
+                        {% if answer.is_correct %}
+                            <strong>✓ {{ answer.answer_text }}</strong> <small style="color: var(--pico-color-green-700);">(Correct)</small>
+                        {% elif answer.was_selected %}
+                            <strong>✗ {{ answer.answer_text }}</strong> <small style="color: var(--pico-color-red-700);">(Your choice)</small>
+                        {% else %}
+                            {{ answer.answer_text }}
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div style="margin-top: 2rem;">
+                <h3>Explanation:</h3>
+                <div style="padding: 1rem; background-color: var(--pico-background-color); border-radius: 4px;">
+                    {{ explanation | markdown({
+                        "rule": "/en/rules/wfdf-ultimate/",
+                        "definition": "/en/rules/wfdf-ultimate/definitions#"
+                    }) | safe }}
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 2rem;">
+                <a href="/quiz/question" role="button" class="contrast">Next Question</a>
+                <a href="/quiz" role="button" class="outline">Back to Quiz Home</a>
+            </div>
+        </article>
+    </section>
+
+    <footer>
+        <p><small>Session ID: {{ session_id[:8] }}... | Responses are tracked anonymously</small></p>
+    </footer>
+</main>
+{% endblock %}

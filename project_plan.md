@@ -34,7 +34,17 @@ Master roadmap organizing development epics for the Ultimate Frisbee rules refer
 
 ---
 
-## Epic 4: AI Features & Content Enhancement
+## Epic 4: Rules Quiz System
+**Who**: Nathan (new player), Valeria (experienced player), Fred (federation coordinator)  
+**What**: Interactive multiple-choice quiz system with randomized questions, immediate feedback, and educational explanations  
+**Why**: Reinforce rule knowledge through active learning and provide engaging practice for players at all levels  
+
+**Detail Plan**: `project_plan_quiz_system.md`  
+**Status**: 🏗️ **In Progress** (Current Priority)
+
+---
+
+## Epic 5: AI Features & Content Enhancement
 **Who**: Fred (federation coordinator), Valeria (experienced player), Nathan (new player)  
 **What**: AI-powered content processing, automatic cross-referencing, and intelligent rule assistance  
 **Why**: Automate tedious content curation tasks and provide intelligent assistance for rule comprehension  

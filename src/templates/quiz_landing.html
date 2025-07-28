@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz - Ultimate Frisbee Rules{% endblock %}
+
+{% block content %}
+<main class="container">
+    <header>
+        <h1>Ultimate Frisbee Rules Quiz</h1>
+        <p>Test your knowledge of the Ultimate Frisbee rules with random questions covering beginner to advanced concepts.</p>
+    </header>
+
+    <section>
+        <div class="grid">
+            <div>
+                <h2>How it works</h2>
+                <ul>
+                    <li>Get a random question from the rule book</li>
+                    <li>Choose from multiple choice answers</li>
+                    <li>Get immediate feedback with explanations</li>
+                    <li>Learn rule references for deeper understanding</li>
+                </ul>
+            </div>
+            <div>
+                <h2>Difficulty Levels</h2>
+                <ul>
+                    <li><strong>Beginner:</strong> Basic game concepts</li>
+                    <li><strong>Intermediate:</strong> Common game situations</li>
+                    <li><strong>Advanced:</strong> Complex scenarios and edge cases</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <div style="text-align: center; margin: 2rem 0;">
+            <a href="/quiz/question" role="button" class="contrast">Start Quiz</a>
+        </div>
+    </section>
+
+    <footer>
+        <p><small>Questions are randomly selected from the imported rule set. Your responses are tracked anonymously for the session only.</small></p>
+    </footer>
+</main>
+{% endblock %}
