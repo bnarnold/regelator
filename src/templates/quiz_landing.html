@@ -33,7 +33,9 @@
 
     <section>
         <div style="text-align: center; margin: 2rem 0;">
-            <a href="/quiz/question" role="button" class="contrast">Start Quiz</a>
+            <form action="/{{ language }}/quiz/{{ rule_set_slug }}/start" method="post">
+                <button type="submit" class="contrast">Start Quiz</button>
+            </form>
         </div>
     </section>
 

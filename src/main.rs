@@ -1,3 +1,4 @@
+use ammonia::clean;
 use axum::{
     extract::{FromRef, State},
     http::{header, HeaderValue, StatusCode},
@@ -12,8 +13,7 @@ use diesel::{
     RunQueryDsl,
 };
 use minijinja::{Environment, Value};
-use pulldown_cmark::{html, Parser, Event, Tag};
-use ammonia::clean;
+use pulldown_cmark::{html, Event, Parser, Tag};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -27,14 +27,17 @@ use repository::RuleRepository;
 type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 
 /// Convert markdown text to safe HTML with custom link rewriting
-fn markdown_filter(markdown: &Value, link_context: Option<&Value>) -> Result<String, minijinja::Error> {
+fn markdown_filter(
+    markdown: &Value,
+    link_context: Option<&Value>,
+) -> Result<String, minijinja::Error> {
     let markdown_str = markdown.as_str().ok_or_else(|| {
         minijinja::Error::new(
             minijinja::ErrorKind::InvalidOperation,
-            "markdown filter requires a string value"
+            "markdown filter requires a string value",
         )
     })?;
-    
+
     // Parse link context if provided
     let link_map: HashMap<String, String> = if let Some(context) = link_context {
         if let Some(obj) = context.as_object() {
@@ -48,7 +51,8 @@ fn markdown_filter(markdown: &Value, link_context: Option<&Value>) -> Result<Str
                         }
                     }
                     None
-                }).collect()
+                })
+                .collect()
             } else {
                 HashMap::new()
             }
@@ -58,23 +62,28 @@ fn markdown_filter(markdown: &Value, link_context: Option<&Value>) -> Result<Str
     } else {
         HashMap::new()
     };
-    
+
     let parser = Parser::new(markdown_str);
-    
+
     // Process events to rewrite custom link schemes
     let processed_events = parser.map(|event| match event {
-        Event::Start(Tag::Link { link_type, dest_url, title, id }) => {
+        Event::Start(Tag::Link {
+            link_type,
+            dest_url,
+            title,
+            id,
+        }) => {
             let new_dest = rewrite_custom_link(&dest_url, &link_map);
-            Event::Start(Tag::Link { 
-                link_type, 
-                dest_url: new_dest.into(), 
-                title, 
-                id 
+            Event::Start(Tag::Link {
+                link_type,
+                dest_url: new_dest.into(),
+                title,
+                id,
             })
         }
-        _ => event
+        _ => event,
     });
-    
+
     let mut html_output = String::new();
     html::push_html(&mut html_output, processed_events);
     Ok(clean(&html_output).to_string())
@@ -87,7 +96,7 @@ fn rewrite_custom_link(dest_url: &str, link_map: &HashMap<String, String>) -> St
             return format!("{}{}", prefix, slug);
         }
     }
-    
+
     // Return original URL if not a custom scheme or scheme not found
     dest_url.to_string()
 }
@@ -107,7 +116,7 @@ impl AppState {
     fn new() -> Result<Self, eyre::Error> {
         let mut env = Environment::new();
         env.set_loader(minijinja::path_loader("src/templates"));
-        
+
         // Register custom filters
         env.add_filter("markdown", markdown_filter);
 
@@ -168,9 +177,30 @@ async fn main() {
             "/{language}/rules/{rule_set}/{rule_slug}",
             get(handlers::show_rule),
         )
-        .route("/quiz", get(handlers::quiz_landing))
-        .route("/quiz/question", get(handlers::random_quiz_question))
-        .route("/quiz/submit", post(handlers::submit_quiz_answer))
+        .route(
+            "/quiz",
+            get(|| async { axum::response::Redirect::to("/en/quiz/wfdf-ultimate") }),
+        )
+        .route(
+            "/{language}/quiz/{rule_set_slug}",
+            get(handlers::quiz_landing),
+        )
+        .route(
+            "/{language}/quiz/{rule_set_slug}/start",
+            post(handlers::start_quiz_session),
+        )
+        .route(
+            "/{language}/quiz/{rule_set_slug}/question",
+            post(handlers::random_quiz_question),
+        )
+        .route(
+            "/{language}/quiz/{rule_set_slug}/submit",
+            post(handlers::submit_quiz_answer),
+        )
+        .route(
+            "/{language}/quiz/{rule_set_slug}/session/{session_id}/clear",
+            get(handlers::clear_session_data),
+        )
         .nest_service(
             "/static",
             SetResponseHeaderLayer::if_not_present(
@@ -192,43 +222,44 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_markdown_filter_basic_features() {
-        use minijinja::{Environment, context};
-        
+        use minijinja::{context, Environment};
+
         let mut env = Environment::new();
         env.add_filter("markdown", markdown_filter);
-        
+
         // Test headers
         let ctx = context! { content => "# Header 1" };
         let tmpl = env.template_from_str("{{ content | markdown }}").unwrap();
         assert_eq!(tmpl.render(&ctx).unwrap(), "<h1>Header 1</h1>\n");
-        
-        // Test emphasis  
+
+        // Test emphasis
         let ctx = context! { content => "*italic*" };
         let tmpl = env.template_from_str("{{ content | markdown }}").unwrap();
         assert_eq!(tmpl.render(&ctx).unwrap(), "<p><em>italic</em></p>\n");
-        
+
         // Test links (ammonia adds rel attributes for security)
         let ctx = context! { content => "[link text](https://example.com)" };
         let tmpl = env.template_from_str("{{ content | markdown }}").unwrap();
         let result = tmpl.render(&ctx).unwrap();
-        assert!(result.contains("<a href=\"https://example.com\" rel=\"noopener noreferrer\">link text</a>"));
+        assert!(result
+            .contains("<a href=\"https://example.com\" rel=\"noopener noreferrer\">link text</a>"));
     }
 
     #[test]
     fn test_markdown_filter_xss_protection() {
-        use minijinja::{Environment, context};
-        
+        use minijinja::{context, Environment};
+
         let mut env = Environment::new();
         env.add_filter("markdown", markdown_filter);
-        
+
         // Test that script tags are completely removed by ammonia
         let ctx = context! { content => "<script>alert('xss')</script>" };
         let tmpl = env.template_from_str("{{ content | markdown }}").unwrap();
         assert_eq!(tmpl.render(&ctx).unwrap(), "");
-        
+
         // Test that dangerous links are sanitized (href removed, rel added)
         let ctx = context! { content => "[dangerous](javascript:alert('xss'))" };
         let tmpl = env.template_from_str("{{ content | markdown }}").unwrap();
@@ -238,54 +269,62 @@ mod tests {
 
     #[test]
     fn test_markdown_filter_safe_html() {
-        use minijinja::{Environment, context};
-        
+        use minijinja::{context, Environment};
+
         let mut env = Environment::new();
         env.add_filter("markdown", markdown_filter);
-        
+
         // Test that basic HTML tags are preserved when safe
         let ctx = context! { content => "Normal **bold** text" };
         let tmpl = env.template_from_str("{{ content | markdown }}").unwrap();
-        assert_eq!(tmpl.render(&ctx).unwrap(), "<p>Normal <strong>bold</strong> text</p>\n");
+        assert_eq!(
+            tmpl.render(&ctx).unwrap(),
+            "<p>Normal <strong>bold</strong> text</p>\n"
+        );
     }
 
     #[test]
     fn test_markdown_filter_link_rewriting() {
-        use minijinja::{Environment, context};
-        
+        use minijinja::{context, Environment};
+
         let mut env = Environment::new();
         env.add_filter("markdown", markdown_filter);
-        
+
         let mut link_map = std::collections::HashMap::new();
-        link_map.insert("definition".to_string(), "/en/rules/wfdf-ultimate/definitions#".to_string());
+        link_map.insert(
+            "definition".to_string(),
+            "/en/rules/wfdf-ultimate/definitions#".to_string(),
+        );
         link_map.insert("rule".to_string(), "#".to_string());
-        
+
         let ctx = context! {
             link_map => link_map,
             content => "See [the throw](definition:throw) and [rule 16.3](rule:handling-contested-calls)"
         };
-        
-        let tmpl = env.template_from_str("{{ content | markdown(link_map) }}").unwrap();
+
+        let tmpl = env
+            .template_from_str("{{ content | markdown(link_map) }}")
+            .unwrap();
         let result = tmpl.render(&ctx).unwrap();
-        
+
         assert!(result.contains("href=\"/en/rules/wfdf-ultimate/definitions#throw\""));
         assert!(result.contains("href=\"#handling-contested-calls\""));
     }
 
-    #[test] 
+    #[test]
     fn test_markdown_filter_no_link_context() {
-        use minijinja::{Environment, context};
-        
+        use minijinja::{context, Environment};
+
         let mut env = Environment::new();
         env.add_filter("markdown", markdown_filter);
-        
+
         let ctx = context! {
             content => "See [the throw](definition:throw) and [regular link](https://example.com)"
         };
-        
+
         let tmpl = env.template_from_str("{{ content | markdown }}").unwrap();
         let result = tmpl.render(&ctx).unwrap();
-        
+
         // Without link_map, custom schemes get stripped by ammonia (this is correct security behavior)
         assert!(result.contains("rel=\"noopener noreferrer\">the throw</a>"));
         assert!(!result.contains("href=\"definition:throw\""));
@@ -295,22 +334,27 @@ mod tests {
 
     #[test]
     fn test_markdown_filter_mixed_links() {
-        use minijinja::{Environment, context};
-        
+        use minijinja::{context, Environment};
+
         let mut env = Environment::new();
         env.add_filter("markdown", markdown_filter);
-        
+
         let mut link_map = std::collections::HashMap::new();
-        link_map.insert("definition".to_string(), "/en/rules/wfdf-ultimate/definitions#".to_string());
-        
+        link_map.insert(
+            "definition".to_string(),
+            "/en/rules/wfdf-ultimate/definitions#".to_string(),
+        );
+
         let ctx = context! {
             link_map => link_map,
             content => "See [term](definition:throw), [external](https://example.com), and [unknown](unknown:test)"
         };
-        
-        let tmpl = env.template_from_str("{{ content | markdown(link_map) }}").unwrap();
+
+        let tmpl = env
+            .template_from_str("{{ content | markdown(link_map) }}")
+            .unwrap();
         let result = tmpl.render(&ctx).unwrap();
-        
+
         // Known scheme should be rewritten
         assert!(result.contains("href=\"/en/rules/wfdf-ultimate/definitions#throw\""));
         // Regular URL should remain unchanged

@@ -489,6 +489,41 @@ impl RuleRepository {
         Ok(results)
     }
 
+    /// Get quiz questions that haven't been attempted in the current session
+    pub fn get_unattempted_questions_for_session(
+        &self,
+        session_id_param: &str,
+        rule_set_id_param: &str,
+        version_id_param: &str,
+    ) -> Result<Vec<QuizQuestion>> {
+        use crate::schema::quiz_attempts::dsl as qa_dsl;
+        use crate::schema::quiz_questions::dsl as qq_dsl;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        // Get question IDs that have been attempted in this session
+        let attempted_question_ids: Vec<String> = qa_dsl::quiz_attempts
+            .filter(qa_dsl::session_id.eq(session_id_param))
+            .select(qa_dsl::question_id)
+            .distinct()
+            .load(&mut conn)
+            .wrap_err("Failed to load attempted question IDs")?;
+
+        // Get questions not in the attempted list
+        let results = qq_dsl::quiz_questions
+            .filter(qq_dsl::rule_set_id.eq(rule_set_id_param))
+            .filter(qq_dsl::version_id.eq(version_id_param))
+            .filter(qq_dsl::id.ne_all(attempted_question_ids))
+            .select(QuizQuestion::as_select())
+            .load(&mut conn)
+            .wrap_err("Failed to load unattempted quiz questions")?;
+
+        Ok(results)
+    }
+
     /// Get a specific quiz question by ID
     pub fn get_quiz_question_by_id(&self, question_id_param: &str) -> Result<Option<QuizQuestion>> {
         use crate::schema::quiz_questions::dsl::*;
@@ -567,5 +602,84 @@ impl RuleRepository {
             .wrap_err("Failed to load session attempts")?;
 
         Ok(results)
+    }
+
+    /// Get session statistics summary
+    pub fn get_session_statistics(&self, session_id_param: &str) -> Result<SessionStatistics> {
+        use crate::schema::quiz_attempts::dsl::*;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        let attempts = quiz_attempts
+            .filter(session_id.eq(session_id_param))
+            .order(created_at.asc())
+            .select(QuizAttempt::as_select())
+            .load(&mut conn)
+            .wrap_err("Failed to load session attempts")?;
+
+        let total_questions = attempts.len();
+        let correct_answers = attempts.iter().filter(|a| a.is_correct == Some(true)).count();
+        let accuracy_percentage = if total_questions > 0 {
+            (correct_answers as f32 / total_questions as f32 * 100.0).round() as u32
+        } else {
+            0
+        };
+
+        // Calculate current streak (consecutive correct answers from most recent)
+        let mut current_streak = 0;
+        for attempt in attempts.iter().rev() {
+            if attempt.is_correct == Some(true) {
+                current_streak += 1;
+            } else {
+                break;
+            }
+        }
+
+        Ok(SessionStatistics {
+            total_questions,
+            correct_answers,
+            accuracy_percentage,
+            current_streak,
+        })
+    }
+
+    /// Get questions that were answered incorrectly in this session
+    pub fn get_session_missed_questions(&self, session_id_param: &str) -> Result<Vec<(QuizQuestion, QuizAttempt)>> {
+        use crate::schema::quiz_attempts::dsl as qa_dsl;
+        use crate::schema::quiz_questions::dsl as qq_dsl;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        let results = qq_dsl::quiz_questions
+            .inner_join(qa_dsl::quiz_attempts.on(qa_dsl::question_id.eq(qq_dsl::id)))
+            .filter(qa_dsl::session_id.eq(session_id_param))
+            .filter(qa_dsl::is_correct.eq(Some(false)))
+            .select((QuizQuestion::as_select(), QuizAttempt::as_select()))
+            .load(&mut conn)
+            .wrap_err("Failed to load missed questions")?;
+
+        Ok(results)
+    }
+
+    /// Clear all attempts for a session (for privacy)
+    pub fn clear_session_attempts(&self, session_id_param: &str) -> Result<()> {
+        use crate::schema::quiz_attempts::dsl::*;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        diesel::delete(quiz_attempts.filter(session_id.eq(session_id_param)))
+            .execute(&mut conn)
+            .wrap_err("Failed to clear session attempts")?;
+
+        Ok(())
     }
 }

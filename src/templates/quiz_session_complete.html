@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Session Complete - Ultimate Frisbee Rules Quiz{% endblock %}
+
+{% block content %}
+<main class="container">
+    <header>
+        <nav>
+            <ul>
+                <li><a href="/quiz">← Back to Quiz</a></li>
+            </ul>
+        </nav>
+        <h1>Session Complete! 🎉</h1>
+    </header>
+
+    <section>
+        <article>
+            <header>
+                <h2>Final Statistics</h2>
+            </header>
+
+            <div class="grid">
+                <div style="text-align: center;">
+                    <h3 style="margin: 0;">{{ stats.accuracy_percentage }}%</h3>
+                    <p><small>Accuracy</small></p>
+                </div>
+                <div style="text-align: center;">
+                    <h3 style="margin: 0;">{{ stats.correct_answers }}/{{ stats.total_questions }}</h3>
+                    <p><small>Correct Answers</small></p>
+                </div>
+                <div style="text-align: center;">
+                    <h3 style="margin: 0;">{{ stats.current_streak }}</h3>
+                    <p><small>Final Streak</small></p>
+                </div>
+            </div>
+
+            {% if stats.accuracy_percentage >= 80 %}
+            <div style="padding: 1rem; background-color: var(--pico-color-green-100); border-left: 4px solid var(--pico-color-green-500); margin: 1rem 0;">
+                <h3 style="color: var(--pico-color-green-700); margin: 0 0 0.5rem 0;">Excellent Performance!</h3>
+                <p style="margin: 0; color: var(--pico-color-green-700);">You've mastered these rules. Great job!</p>
+            </div>
+            {% elif stats.accuracy_percentage >= 60 %}
+            <div style="padding: 1rem; background-color: var(--pico-color-amber-100); border-left: 4px solid var(--pico-color-amber-500); margin: 1rem 0;">
+                <h3 style="color: var(--pico-color-amber-700); margin: 0 0 0.5rem 0;">Good Progress!</h3>
+                <p style="margin: 0; color: var(--pico-color-amber-700);">You're getting the hang of it. Keep practicing!</p>
+            </div>
+            {% else %}
+            <div style="padding: 1rem; background-color: var(--pico-color-blue-100); border-left: 4px solid var(--pico-color-blue-500); margin: 1rem 0;">
+                <h3 style="color: var(--pico-color-blue-700); margin: 0 0 0.5rem 0;">Keep Learning!</h3>
+                <p style="margin: 0; color: var(--pico-color-blue-700);">Practice makes perfect. Review the missed questions to improve!</p>
+            </div>
+            {% endif %}
+
+            {% if missed_questions|length > 0 %}
+            <details style="margin-top: 2rem;">
+                <summary><strong>Review Missed Questions ({{ missed_questions|length }})</strong></summary>
+                
+                {% for missed in missed_questions %}
+                <div style="border: 1px solid var(--pico-muted-border-color); border-radius: 4px; padding: 1rem; margin: 1rem 0;">
+                    <h4 style="margin-top: 0;">{{ missed.question_text }}</h4>
+                    <p><small><strong>Difficulty:</strong> {{ missed.difficulty_level | title }}</small></p>
+                    
+                    <div style="padding: 1rem; background-color: var(--pico-background-color); border-radius: 4px; margin-top: 1rem;">
+                        <strong>Explanation:</strong><br>
+                        {{ missed.explanation | markdown({
+                            "rule": "/en/rules/wfdf-ultimate/",
+                            "definition": "/en/rules/wfdf-ultimate/definitions#"
+                        }) | safe }}
+                    </div>
+                </div>
+                {% endfor %}
+            </details>
+            {% endif %}
+        </article>
+    </section>
+
+    <section style="text-align: center; margin-top: 2rem;">
+        <a href="/quiz" role="button" class="contrast">Start New Session</a>
+        <a href="/quiz/session/{{ session_id }}/clear" role="button" class="outline" 
+           onclick="return confirm('This will clear your session data. Continue?')">
+           Clear Session Data
+        </a>
+    </section>
+
+    <footer>
+        <p><small>Session ID: {{ session_id[:8] }}... | All data is anonymous and session-based only</small></p>
+    </footer>
+</main>
+{% endblock %}

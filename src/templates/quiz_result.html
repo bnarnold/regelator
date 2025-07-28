@@ -16,6 +16,24 @@
         <h1>Quiz Result</h1>
     </header>
 
+    <!-- Session Statistics -->
+    <section>
+        <div class="grid">
+            <div style="text-align: center;">
+                <h4 style="margin: 0;">{{ session_stats.accuracy_percentage }}%</h4>
+                <p><small>Accuracy</small></p>
+            </div>
+            <div style="text-align: center;">
+                <h4 style="margin: 0;">{{ questions_attempted }}/{{ total_questions_available }}</h4>
+                <p><small>Questions Attempted</small></p>
+            </div>
+            <div style="text-align: center;">
+                <h4 style="margin: 0;">{{ session_stats.current_streak }}</h4>
+                <p><small>Current Streak</small></p>
+            </div>
+        </div>
+    </section>
+
     <section>
         <article>
             <header>
@@ -66,8 +84,11 @@
             </div>
 
             <div style="text-align: center; margin-top: 2rem;">
-                <a href="/quiz/question" role="button" class="contrast">Next Question</a>
-                <a href="/quiz" role="button" class="outline">Back to Quiz Home</a>
+                <form action="/{{ language }}/quiz/{{ rule_set_slug }}/question" method="post" style="display: inline;">
+                    <input type="hidden" name="session_id" value="{{ session_id }}">
+                    <button type="submit" class="contrast">Next Question</button>
+                </form>
+                <a href="/{{ language }}/quiz/{{ rule_set_slug }}" role="button" class="outline">Back to Quiz Home</a>
             </div>
         </article>
     </section>

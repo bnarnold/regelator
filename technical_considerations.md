@@ -25,7 +25,9 @@ This document captures technical decisions, lessons learned, and implementation 
 - Reduces complexity compared to separate frontend framework
 
 **Lessons Learned:**
-- *[To be filled during implementation]*
+- HTMX works well for quiz flow with form submissions and partial page updates
+- Relative paths in form actions can be problematic - absolute paths more reliable
+- Hidden form inputs provide clean session tracking without cookies
 
 ### Database: SQLite + Diesel
 **Decision:** SQLite for data storage with Diesel ORM
@@ -320,4 +322,52 @@ This document captures technical decisions, lessons learned, and implementation 
 
 ---
 
-*Last updated: 2025-07-27*
+## Quiz System Implementation Lessons (Story 4)
+
+### Session Tracking Without Cookies
+**Approach:** Use hidden form inputs to carry session ID through quiz flow
+**Benefits:**
+- No GDPR cookie banner required
+- Clean session isolation
+- Works with all browsers/privacy settings
+
+**Implementation:**
+- Generate UUID session ID on quiz start
+- Pass through hidden inputs in all forms
+- Store attempts in database with anonymous session ID
+
+### Database Design for Session Statistics
+**Pattern:** Separate view models from database models for template rendering
+**Rationale:**
+- Keeps database models focused on persistence
+- Template-specific fields (like computed statistics) stay in handlers
+- Easier to evolve database schema independently
+
+**Example:**
+```rust
+// Database model - no Serialize
+pub struct SessionStatistics { ... }
+
+// View model - for templates  
+#[derive(Serialize)]
+struct SessionStatsView { ... }
+```
+
+### URL Structure and Form Actions
+**Issue:** Relative paths in forms can resolve incorrectly
+**Solution:** Use absolute paths with template variables
+```html
+<!-- Instead of: action="submit" -->
+<form action="/{{ language }}/quiz/{{ rule_set_slug }}/submit">
+```
+
+**Benefit:** Consistent routing regardless of current page structure
+
+### Session Completion Flow
+**Pattern:** Helper functions for shared logic between handlers
+**Example:** `get_quiz_question_for_session()` used by both start and next question handlers
+**Benefit:** DRY principle, consistent session completion detection
+
+---
+
+*Last updated: 2025-07-28*

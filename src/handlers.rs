@@ -5,12 +5,10 @@ use crate::{
 };
 use axum::{
     extract::{Form, Path, Query, State},
-    http::HeaderMap,
-    response::Html,
+    response::{Html, Redirect},
 };
 use minijinja::Environment;
 use rand::seq::IndexedRandom;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -655,7 +653,8 @@ pub async fn definitions_page(
 
 #[derive(Serialize)]
 struct QuizLandingData {
-    // Empty for now - just a simple start page
+    language: String,
+    rule_set_slug: String,
 }
 
 #[derive(Serialize)]
@@ -665,6 +664,8 @@ struct QuizQuestionData {
     difficulty_level: String,
     answers: Vec<QuizAnswerData>,
     session_id: String,
+    rule_set_slug: String,
+    language: String,
 }
 
 #[derive(Serialize)]
@@ -683,6 +684,33 @@ struct QuizResultData {
     is_correct: bool,
     explanation: String,
     session_id: String,
+    session_stats: SessionStatsView,
+    total_questions_available: usize,
+    questions_attempted: usize,
+    language: String,
+    rule_set_slug: String,
+}
+
+#[derive(Serialize)]
+struct QuizSessionCompleteData {
+    session_id: String,
+    stats: SessionStatsView,
+    missed_questions: Vec<MissedQuestionView>,
+}
+
+#[derive(Serialize)]
+struct SessionStatsView {
+    total_questions: usize,
+    correct_answers: usize,
+    accuracy_percentage: u32,
+    current_streak: usize,
+}
+
+#[derive(Serialize)]
+struct MissedQuestionView {
+    question_text: String,
+    difficulty_level: String,
+    explanation: String,
 }
 
 #[derive(Serialize)]
@@ -698,13 +726,19 @@ pub struct QuizSubmission {
     question_id: String,
     answer_id: String,
     session_id: String,
+    rule_set_slug: String,
+    language: String,
 }
 
 /// Quiz landing page
 pub async fn quiz_landing(
+    Path((language, rule_set_slug)): Path<(String, String)>,
     State(template_env): State<Arc<Environment<'static>>>,
 ) -> Result<Html<String>, AppError> {
-    let template_data = QuizLandingData {};
+    let template_data = QuizLandingData {
+        language,
+        rule_set_slug,
+    };
 
     let template = template_env.get_template("quiz_landing.html")?;
     let response = template.render(&template_data)?;
@@ -712,17 +746,40 @@ pub async fn quiz_landing(
     Ok(Html(response))
 }
 
-/// Get a random quiz question
-pub async fn random_quiz_question(
+/// Start a new quiz session
+pub async fn start_quiz_session(
+    Path((language, rule_set_slug)): Path<(String, String)>,
     State(repository): State<RuleRepository>,
     State(template_env): State<Arc<Environment<'static>>>,
-    headers: HeaderMap,
 ) -> Result<Html<String>, AppError> {
-    // Get session ID from cookie or create new one
-    let session_id = get_or_create_session_id(&headers);
+    let session_id = uuid::Uuid::now_v7().to_string();
+    
+    // Redirect to first question with this session
+    get_quiz_question_for_session(repository, template_env, session_id, language, rule_set_slug).await
+}
 
-    // Get rule set and version (hardcoded for now)
-    let rule_set_slug = "wfdf-ultimate";
+/// Get a random quiz question (for form redirects)
+pub async fn random_quiz_question(
+    Path((language, rule_set_slug)): Path<(String, String)>,
+    State(repository): State<RuleRepository>,
+    State(template_env): State<Arc<Environment<'static>>>,
+    Form(form_data): Form<std::collections::HashMap<String, String>>,
+) -> Result<Html<String>, AppError> {
+    let session_id = form_data.get("session_id")
+        .ok_or_else(|| AppError(eyre::eyre!("Session ID required")))?
+        .clone();
+    
+    get_quiz_question_for_session(repository, template_env, session_id, language, rule_set_slug).await
+}
+
+/// Helper function to get quiz question for a session
+async fn get_quiz_question_for_session(
+    repository: RuleRepository,
+    template_env: Arc<Environment<'static>>,
+    session_id: String,
+    language: String,
+    rule_set_slug: String,
+) -> Result<Html<String>, AppError> {
 
     let rule_sets = repository.get_rule_sets()?;
     let rule_set = rule_sets
@@ -731,14 +788,19 @@ pub async fn random_quiz_question(
         .ok_or_else(|| AppError(eyre::eyre!("Rule set not found")))?;
 
     let version = repository
-        .get_current_version(rule_set_slug)?
+        .get_current_version(&rule_set_slug)?
         .ok_or_else(|| AppError(eyre::eyre!("No current version found")))?;
 
-    // Get all questions for this rule set/version
-    let questions = repository.get_quiz_questions(&rule_set.id, &version.id)?;
+    // Get questions not yet attempted in this session
+    let questions = repository.get_unattempted_questions_for_session(
+        &session_id,
+        &rule_set.id,
+        &version.id,
+    )?;
 
     if questions.is_empty() {
-        return Err(AppError(eyre::eyre!("No quiz questions found")));
+        // All questions have been attempted - show session complete
+        return show_session_complete(repository, template_env, session_id, language, rule_set_slug).await;
     }
 
     // Select random question (simple approach for now)
@@ -765,6 +827,8 @@ pub async fn random_quiz_question(
         difficulty_level: selected_question.difficulty_level.clone(),
         answers,
         session_id,
+        rule_set_slug,
+        language,
     };
 
     let template = template_env.get_template("quiz_question.html")?;
@@ -773,8 +837,49 @@ pub async fn random_quiz_question(
     Ok(Html(response))
 }
 
+/// Show session complete page with statistics
+async fn show_session_complete(
+    repository: RuleRepository,
+    template_env: Arc<Environment<'static>>,
+    session_id: String,
+    _language: String,
+    _rule_set_slug: String,
+) -> Result<Html<String>, AppError> {
+    // Get session statistics
+    let db_stats = repository.get_session_statistics(&session_id)?;
+    let stats = SessionStatsView {
+        total_questions: db_stats.total_questions,
+        correct_answers: db_stats.correct_answers,
+        accuracy_percentage: db_stats.accuracy_percentage,
+        current_streak: db_stats.current_streak,
+    };
+    
+    // Get missed questions for review and convert to view models
+    let db_missed = repository.get_session_missed_questions(&session_id)?;
+    let missed_questions: Vec<MissedQuestionView> = db_missed
+        .into_iter()
+        .map(|(question, _attempt)| MissedQuestionView {
+            question_text: question.question_text,
+            difficulty_level: question.difficulty_level,
+            explanation: question.explanation,
+        })
+        .collect();
+    
+    let template_data = QuizSessionCompleteData {
+        session_id,
+        stats,
+        missed_questions,
+    };
+
+    let template = template_env.get_template("quiz_session_complete.html")?;
+    let response = template.render(&template_data)?;
+
+    Ok(Html(response))
+}
+
 /// Submit quiz answer and show results
 pub async fn submit_quiz_answer(
+    Path((language, rule_set_slug)): Path<(String, String)>,
     State(repository): State<RuleRepository>,
     State(template_env): State<Arc<Environment<'static>>>,
     Form(submission): Form<QuizSubmission>,
@@ -805,6 +910,29 @@ pub async fn submit_quiz_answer(
 
     repository.create_quiz_attempt(&attempt)?;
 
+    // Get session statistics after recording the attempt
+    let db_stats = repository.get_session_statistics(&submission.session_id)?;
+    let session_stats = SessionStatsView {
+        total_questions: db_stats.total_questions,
+        correct_answers: db_stats.correct_answers,
+        accuracy_percentage: db_stats.accuracy_percentage,
+        current_streak: db_stats.current_streak,
+    };
+
+    // Get total available questions for this rule set using form data
+    let rule_sets = repository.get_rule_sets()?;
+    let rule_set = rule_sets
+        .iter()
+        .find(|rs| rs.slug == submission.rule_set_slug)
+        .ok_or_else(|| AppError(eyre::eyre!("Rule set not found")))?;
+    let version = repository
+        .get_current_version(&submission.rule_set_slug)?
+        .ok_or_else(|| AppError(eyre::eyre!("No current version found")))?;
+    
+    let all_questions = repository.get_quiz_questions(&rule_set.id, &version.id)?;
+    let total_questions_available = all_questions.len();
+    let questions_attempted = db_stats.total_questions;
+
     // Prepare answer data with selection markers
     let answers_with_result: Vec<QuizAnswerWithResult> = answers
         .iter()
@@ -825,6 +953,11 @@ pub async fn submit_quiz_answer(
         is_correct,
         explanation: question.explanation.clone(),
         session_id: submission.session_id,
+        session_stats,
+        total_questions_available,
+        questions_attempted,
+        language: submission.language,
+        rule_set_slug: submission.rule_set_slug,
     };
 
     let template = template_env.get_template("quiz_result.html")?;
@@ -833,9 +966,14 @@ pub async fn submit_quiz_answer(
     Ok(Html(response))
 }
 
-/// Get or create session ID from headers
-fn get_or_create_session_id(_headers: &HeaderMap) -> String {
-    // For now, just generate a new session ID each time
-    // In a real app, we'd check for a session cookie
-    uuid::Uuid::now_v7().to_string()
+/// Clear session data for privacy
+pub async fn clear_session_data(
+    State(repository): State<RuleRepository>,
+    Path(session_id): Path<String>,
+) -> Result<Redirect, AppError> {
+    // Delete all attempts for this session
+    repository.clear_session_attempts(&session_id)?;
+    
+    // Redirect back to quiz home
+    Ok(Redirect::to("/quiz"))
 }

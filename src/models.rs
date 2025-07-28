@@ -472,3 +472,12 @@ impl QuizQuestionData {
         (question, answers, rule_links)
     }
 }
+
+/// Session statistics summary
+#[derive(Debug, Clone)]
+pub struct SessionStatistics {
+    pub total_questions: usize,
+    pub correct_answers: usize,
+    pub accuracy_percentage: u32,
+    pub current_streak: usize,
+}
