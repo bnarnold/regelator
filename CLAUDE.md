@@ -80,6 +80,19 @@ Example format:
 15.13. calling-hand-signals Players are encouraged to use the WFDF Hand Signals to communicate all calls.
 ```
 
+## Version Control
+
+- **VCS**: Jujutsu (`jj`) with colocated Git backend
+- **Workflow**: Trunk-based development
+- **Branching**: Work directly on main branch, use `jj` for change management
+
+### Key Commands
+- Check current state with `jj status` or `jj st`
+- View change history with `jj log` or `jj log -r 'all()'`
+- See current changes with `jj diff`
+- Create new change with `jj new` (optional, changes are auto-tracked)
+- Describe changes with `jj describe -m "message"`
+
 ## Technology stack
 
 - **Backend**: Rust + `axum` v0.8 + `minijinja`
