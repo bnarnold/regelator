@@ -44,7 +44,17 @@ Master roadmap organizing development epics for the Ultimate Frisbee rules refer
 
 ---
 
-## Epic 5: AI Features & Content Enhancement
+## Epic 5: Get Regelator Production Ready
+**Who**: Fred (federation coordinator), Operations team, System administrators  
+**What**: Production-ready deployment, monitoring, security hardening, performance optimization, and operational tooling  
+**Why**: Enable reliable, secure, and scalable deployment of Regelator for real-world usage with proper monitoring and maintenance capabilities  
+
+**Detail Plan**: `project_plan_production_ready.md`  
+**Status**: 🏗️ **In Progress** (1/10 stories completed - Configuration system complete)
+
+---
+
+## Epic 6: AI Features & Content Enhancement
 **Who**: Fred (federation coordinator), Valeria (experienced player), Nathan (new player)  
 **What**: AI-powered content processing, automatic cross-referencing, and intelligent rule assistance  
 **Why**: Automate tedious content curation tasks and provide intelligent assistance for rule comprehension  
@@ -54,4 +64,4 @@ Master roadmap organizing development epics for the Ultimate Frisbee rules refer
 
 ---
 
-*Last Updated: 2025-07-27*
+*Last Updated: 2025-08-05*

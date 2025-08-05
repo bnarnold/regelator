@@ -19,6 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Always use the TodoWrite tool to track story progress
 - Follow the exact human verification format from pair_programming.md
 - Update `technical_considerations.md` with lessons learned after each story
+- Always run `jj commit` with a descriptive message after finishing a story
 
 ## Project Planning Structure
 
