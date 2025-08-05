@@ -3,10 +3,7 @@ use chrono::Utc;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
-// JWT secret - in production this should be from environment/config
-const JWT_SECRET: &str = "your-super-secret-jwt-key-change-in-production";
 const COOKIE_NAME: &str = "admin_session";
-const TOKEN_EXPIRY_SECONDS: i64 = 2 * 3600; // 2 hours
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AdminClaims {
@@ -17,12 +14,12 @@ pub struct AdminClaims {
 }
 
 impl AdminClaims {
-    pub fn new(admin_id: String, username: String) -> Self {
+    pub fn new(admin_id: String, username: String, session_duration: chrono::Duration) -> Self {
         let now = Utc::now();
         Self {
             admin_id,
             username,
-            exp: (now + chrono::Duration::seconds(TOKEN_EXPIRY_SECONDS)).timestamp(),
+            exp: (now + session_duration).timestamp(),
             iat: now.timestamp(),
         }
     }
@@ -34,19 +31,24 @@ impl AdminClaims {
 
 /// Create a signed JWT cookie for admin authentication
 /// Works on localhost (secure cookies allowed over HTTP on localhost)
-pub fn create_admin_cookie(admin_id: String, username: String) -> Result<Cookie<'static>, jsonwebtoken::errors::Error> {
-    let claims = AdminClaims::new(admin_id, username);
+pub fn create_admin_cookie(
+    admin_id: String, 
+    username: String, 
+    jwt_secret: &str,
+    session_duration: chrono::Duration,
+) -> Result<Cookie<'static>, jsonwebtoken::errors::Error> {
+    let claims = AdminClaims::new(admin_id, username, session_duration);
     let token = encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(JWT_SECRET.as_ref()),
+        &EncodingKey::from_secret(jwt_secret.as_ref()),
     )?;
 
     let cookie = Cookie::build((COOKIE_NAME, token))
         .http_only(true)
         .secure(true) // Works on localhost per MDN documentation
         .same_site(SameSite::Strict)
-        .max_age(time::Duration::seconds(TOKEN_EXPIRY_SECONDS))
+        .max_age(time::Duration::seconds(session_duration.num_seconds()))
         .path("/admin")
         .build();
 
@@ -54,10 +56,10 @@ pub fn create_admin_cookie(admin_id: String, username: String) -> Result<Cookie<
 }
 
 /// Verify admin cookie and extract claims
-pub fn verify_admin_cookie(cookie_value: &str) -> Result<AdminClaims, AdminAuthError> {
+pub fn verify_admin_cookie(cookie_value: &str, jwt_secret: &str) -> Result<AdminClaims, AdminAuthError> {
     let token_data = decode::<AdminClaims>(
         cookie_value,
-        &DecodingKey::from_secret(JWT_SECRET.as_ref()),
+        &DecodingKey::from_secret(jwt_secret.as_ref()),
         &Validation::default(),
     )?;
 

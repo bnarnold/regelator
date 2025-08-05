@@ -4,6 +4,7 @@ use eyre::{Result, WrapErr};
 use regex::Regex;
 use std::io::{self, BufRead};
 
+use regelator::config::Config;
 use regelator::models::*;
 use regelator::repository::RuleRepository;
 
@@ -84,27 +85,25 @@ fn read_definitions_from_stdin() -> Result<Vec<DefinitionData>> {
 
 /// Import definitions into the database
 fn import_definitions(definitions: Vec<DefinitionData>) -> Result<()> {
+    // Load configuration
+    let config = Config::load().wrap_err("Failed to load configuration")?;
+    
     // Database setup
-    let database_url =
-        std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://db/regelator.db".to_string());
-
-    let manager = ConnectionManager::<SqliteConnection>::new(&database_url);
+    let manager = ConnectionManager::<SqliteConnection>::new(&config.database.url);
     let pool = Pool::builder()
         .build(manager)
         .wrap_err("Failed to create connection pool")?;
 
     let repo = RuleRepository::new(pool);
 
-    // Use the same hardcoded rule set as the rules import script
-    // TODO: This should be passed as CLI parameters or discovered dynamically
-    let rule_set_slug = "wfdf-ultimate";
-    let version_name = "2025-2028";
+    let rule_set_slug = &config.import.rule_set_slug;
+    let version_name = &config.import.version_name;
 
     // Find the rule set by slug
     let rule_sets = repo.get_rule_sets()?;
     let rule_set = rule_sets
         .iter()
-        .find(|rs| rs.slug == rule_set_slug)
+        .find(|rs| rs.slug == *rule_set_slug)
         .ok_or_else(|| {
             eyre::eyre!(
                 "Rule set '{}' not found. Please import rules first.",

@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::io::{self, BufRead};
 use uuid::Uuid;
 
+use regelator::config::Config;
 use regelator::models::*;
 use regelator::repository::RuleRepository;
 
@@ -109,10 +110,11 @@ fn read_rules_from_stdin() -> Result<Vec<RuleData>> {
 }
 
 fn import_rules(rule_data: Vec<RuleData>) -> Result<()> {
+    // Load configuration
+    let config = Config::load().wrap_err("Failed to load configuration")?;
+    
     // Database setup
-    // TODO: Pass database URL as CLI parameter
-    let database_url = "db/regelator.db";
-    let manager = ConnectionManager::<SqliteConnection>::new(database_url);
+    let manager = ConnectionManager::<SqliteConnection>::new(&config.database.url);
     let pool = Pool::builder()
         .build(manager)
         .wrap_err("Failed to create connection pool")?;
@@ -121,11 +123,10 @@ fn import_rules(rule_data: Vec<RuleData>) -> Result<()> {
 
     // Create rule set
     let rule_set_id = Uuid::now_v7().to_string();
-    // TODO: Pass rule set name and slug as CLI parameters
     let rule_set = NewRuleSet {
         id: rule_set_id.clone(),
-        name: "WFDF Ultimate rules".to_string(),
-        slug: "wfdf-ultimate".to_string(),
+        name: config.import.rule_set_name.clone(),
+        slug: config.import.rule_set_slug.clone(),
         description: Some("Official WFDF Ultimate rules".to_string()),
     };
 
@@ -134,12 +135,13 @@ fn import_rules(rule_data: Vec<RuleData>) -> Result<()> {
 
     // Create version
     let version_id = Uuid::now_v7().to_string();
-    // TODO: Pass version name and effective dates as CLI parameters
+    let effective_from = chrono::NaiveDate::parse_from_str(&config.import.version_effective_date, "%Y-%m-%d")
+        .wrap_err("Invalid version_effective_date format in config (expected YYYY-MM-DD)")?;
     let version = NewVersion {
         id: version_id.clone(),
         rule_set_id: rule_set_id.clone(),
-        version_name: "2025-2028".to_string(),
-        effective_from: chrono::NaiveDate::from_ymd_opt(2025, 1, 1).unwrap(),
+        version_name: config.import.version_name.clone(),
+        effective_from,
         effective_to: None,
         description: Some("WFDF Ultimate rules 2025-2028".to_string()),
         is_current: true,

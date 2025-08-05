@@ -15,6 +15,7 @@ use rand::seq::IndexedRandom;
 use regelator::auth::{
     clear_admin_cookie, create_admin_cookie, verify_admin_cookie, ADMIN_COOKIE_NAME,
 };
+use regelator::config::Config;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -1046,6 +1047,7 @@ pub async fn admin_login_form(
 pub async fn admin_login_submit(
     State(templates): State<Arc<Environment<'static>>>,
     State(repository): State<RuleRepository>,
+    State(config): State<Config>,
     jar: CookieJar,
     Form(form_data): Form<AdminLoginForm>,
 ) -> Result<(CookieJar, Html<String>), AppError> {
@@ -1075,8 +1077,12 @@ pub async fn admin_login_submit(
         // Password is correct - update last login and create signed cookie
         repository.update_admin_last_login(&admin.id)?;
 
-        let cookie = create_admin_cookie(admin.id, admin.username.clone())
-            .map_err(|e| AppError(eyre::eyre!("Failed to create admin cookie: {}", e)))?;
+        let cookie = create_admin_cookie(
+            admin.id, 
+            admin.username.clone(),
+            &config.security.jwt_secret,
+            config.session_duration(),
+        ).map_err(|e| AppError(eyre::eyre!("Failed to create admin cookie: {}", e)))?;
 
         // Show admin dashboard
         let context = AdminDashboardContext {
@@ -1099,6 +1105,7 @@ pub async fn admin_login_submit(
 /// Show admin dashboard (protected route)
 pub async fn admin_dashboard(
     State(templates): State<Arc<Environment<'static>>>,
+    State(config): State<Config>,
     jar: CookieJar,
 ) -> Result<Html<String>, AppError> {
     // Verify admin cookie
@@ -1106,7 +1113,7 @@ pub async fn admin_dashboard(
         .get(ADMIN_COOKIE_NAME)
         .ok_or_else(|| AppError(eyre::eyre!("No admin session")))?;
 
-    let claims = verify_admin_cookie(cookie.value())
+    let claims = verify_admin_cookie(cookie.value(), &config.security.jwt_secret)
         .map_err(|e| AppError(eyre::eyre!("Invalid admin session: {}", e)))?;
 
     let context = AdminDashboardContext {
@@ -1126,6 +1133,7 @@ pub async fn admin_logout(jar: CookieJar) -> Result<(CookieJar, Redirect), AppEr
 /// Show password change form (protected route)
 pub async fn admin_change_password_form(
     State(templates): State<Arc<Environment<'static>>>,
+    State(config): State<Config>,
     jar: CookieJar,
 ) -> Result<Html<String>, AppError> {
     // Verify admin cookie
@@ -1133,7 +1141,7 @@ pub async fn admin_change_password_form(
         .get(ADMIN_COOKIE_NAME)
         .ok_or_else(|| AppError(eyre::eyre!("No admin session")))?;
 
-    verify_admin_cookie(cookie.value())
+    verify_admin_cookie(cookie.value(), &config.security.jwt_secret)
         .map_err(|e| AppError(eyre::eyre!("Invalid admin session: {}", e)))?;
 
     let context = ChangePasswordContext {
@@ -1149,6 +1157,7 @@ pub async fn admin_change_password_form(
 pub async fn admin_change_password_submit(
     State(templates): State<Arc<Environment<'static>>>,
     State(repository): State<RuleRepository>,
+    State(config): State<Config>,
     jar: CookieJar,
     Form(form_data): Form<ChangePasswordForm>,
 ) -> Result<Html<String>, AppError> {
@@ -1157,7 +1166,7 @@ pub async fn admin_change_password_submit(
         .get(ADMIN_COOKIE_NAME)
         .ok_or_else(|| AppError(eyre::eyre!("No admin session")))?;
 
-    let claims = verify_admin_cookie(cookie.value())
+    let claims = verify_admin_cookie(cookie.value(), &config.security.jwt_secret)
         .map_err(|e| AppError(eyre::eyre!("Invalid admin session: {}", e)))?;
 
     // Validate form data

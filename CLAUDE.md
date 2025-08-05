@@ -62,6 +62,32 @@ The underlying rules document, and all applications, should be localized, with a
 - Format code with `cargo fmt`
 - Lint code with `cargo clippy`
 
+## Configuration System
+
+Regelator uses a TOML-based configuration system with environment variable overrides:
+
+### Environment Selection
+- Set `REGELATOR_ENV` to choose config: `local` (default), `dev`, or `prod`
+- Configuration files: `config/shared.toml` and `config/{environment}.toml`
+
+### Required Environment Variables
+- `REGELATOR__SECURITY__JWT_SECRET`: JWT signing key (minimum 32 characters)
+
+### Configuration Files
+- `config/shared.toml`: Common settings across all environments
+- `config/local.toml`: Local development overrides
+
+### Environment Variable Overrides
+All TOML settings can be overridden with `REGELATOR__` prefixed environment variables:
+- `REGELATOR__SERVER__HOST=0.0.0.0`
+- `REGELATOR__SERVER__PORT=3000`
+- `REGELATOR__DATABASE__URL=db/custom.db`
+
+### Setup
+1. Copy `.env.example` to `.env`
+2. Set `REGELATOR__SECURITY__JWT_SECRET` to a secure random string (32+ characters)
+3. Customize other settings as needed
+
 ## Data Import
 
 The import script (`cargo run --bin import_rules`) reads rule data from stdin and expects:

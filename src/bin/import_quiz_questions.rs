@@ -5,6 +5,7 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::io::{self, BufRead};
 
+use regelator::config::Config;
 use regelator::models::*;
 use regelator::repository::RuleRepository;
 
@@ -27,13 +28,14 @@ struct QuizAnswerImport {
 
 fn main() -> Result<()> {
     // Configuration constants
-    let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "db/regelator.db".to_string());
-    let rule_set_slug = "wfdf-ultimate";
-    let version_name = "2025-2028";
+    // Load configuration
+    let config = Config::load().wrap_err("Failed to load configuration")?;
+    
+    let rule_set_slug = &config.import.rule_set_slug;
+    let version_name = &config.import.version_name;
     let language = "en";
 
-    let manager = ConnectionManager::<SqliteConnection>::new(database_url);
+    let manager = ConnectionManager::<SqliteConnection>::new(&config.database.url);
     let pool = Pool::builder()
         .build(manager)
         .wrap_err("Failed to create connection pool")?;
@@ -50,7 +52,7 @@ fn main() -> Result<()> {
     let rule_sets = repository.get_rule_sets()?;
     let rule_set = rule_sets
         .iter()
-        .find(|rs| rs.slug == rule_set_slug)
+        .find(|rs| rs.slug == *rule_set_slug)
         .ok_or_else(|| eyre::eyre!("Rule set '{}' not found", rule_set_slug))?;
 
     let version = repository.get_current_version(rule_set_slug)?

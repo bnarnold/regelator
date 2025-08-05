@@ -22,6 +22,7 @@ mod models;
 mod repository;
 mod schema;
 
+use regelator::config::Config;
 use repository::RuleRepository;
 
 type DbPool = Pool<ConnectionManager<SqliteConnection>>;
@@ -110,25 +111,27 @@ struct AppState {
     templates: Arc<Environment<'static>>,
     db: DbPool,
     rule_repository: RuleRepository,
+    config: Config,
 }
 
 impl AppState {
     fn new() -> Result<Self, eyre::Error> {
+        let config = Config::load().map_err(|e| eyre::eyre!("Failed to load configuration: {}", e))?;
+        
         let mut env = Environment::new();
         env.set_loader(minijinja::path_loader("src/templates"));
 
         // Register custom filters
         env.add_filter("markdown", markdown_filter);
 
-        // TODO: Read from configuration in future story
-        let database_url = "db/regelator.db";
-        let manager = ConnectionManager::<SqliteConnection>::new(database_url);
+        let manager = ConnectionManager::<SqliteConnection>::new(&config.database.url);
         let pool = Pool::builder().build(manager)?;
 
         Ok(AppState {
             templates: Arc::new(env),
             db: pool.clone(),
             rule_repository: RuleRepository::new(pool),
+            config,
         })
     }
 }
@@ -160,6 +163,8 @@ async fn health(State(state): State<AppState>) -> Result<&'static str, AppError>
 #[tokio::main]
 async fn main() {
     let state = AppState::new().expect("Failed to initialize application state");
+
+    let bind_address = state.config.bind_address();
 
     let app = Router::new()
         .route(
@@ -223,10 +228,13 @@ async fn main() {
         .layer(CompressionLayer::new())
         .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind("[::]:8000")
+    let listener = tokio::net::TcpListener::bind(&bind_address)
         .await
         .expect("Bind socket");
 
+    let actual_address = listener.local_addr().expect("Get local address");
+    println!("Server listening on {}", actual_address);
+    
     axum::serve(listener, app).await.expect("Serve app");
 }
 

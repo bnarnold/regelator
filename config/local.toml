@@ -1,0 +1,8 @@
+# Local development configuration
+
+[server]
+host = "127.0.0.1"
+port = 8000
+
+[database]
+url = "db/regelator.db"
