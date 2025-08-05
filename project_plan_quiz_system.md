@@ -235,11 +235,30 @@ EXPLAIN: After a contested foul, play resumes with the stall count at the count 
 - Identifies knowledge gaps
 - Maintains user privacy
 
-### Story 5: Quiz Administration Interface (Fred) 🎯
+### Story 5.1: Basic Admin Authentication ✅
+**Goal:** Create secure admin login system for Fred
+
+**Acceptance Criteria:**
+- [x] Create admin login system with secure password hashing (Argon2)
+- [x] Implement stateless authentication with signed JWT cookies  
+- [x] Add password change functionality with current password verification
+- [x] Create admin dashboard with basic navigation
+- [x] Add proper security: httpOnly cookies, CSRF protection via database verification
+- [x] OWASP-compliant password storage and verification
+
+**Implementation Completed:**
+- **Admin table**: Secure Argon2 password hashing with database triggers
+- **Stateless auth**: JWT-signed cookies (work on localhost per MDN spec)
+- **Password security**: Random salt generation, current password verification required
+- **Routes**: `/admin/login`, `/admin/dashboard`, `/admin/change-password`, `/admin/logout`
+- **Templates**: Clean Pico.css styled forms with proper error handling
+- **Security**: Database-level verification prevents unauthorized password changes
+
+### Story 5.2: Quiz Question Management Interface 🎯
 **Goal:** Create admin interface for Fred to manage quiz content and monitor usage
 
 **Acceptance Criteria:**
-- [ ] Create admin login system for Fred
+- [ ] Build quiz question management interface
 - [ ] Build quiz question management interface
 - [ ] Add question creation/editing forms
 - [ ] Implement question review and approval workflow

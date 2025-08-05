@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Login - Regelator{% endblock %}
+
+{% block content %}
+<main class="container">
+    <article>
+        <header>
+            <h1>Admin Login</h1>
+        </header>
+        
+        <form method="post" action="/admin/login">
+            <fieldset>
+                <label for="username">
+                    Username
+                    <input type="text" id="username" name="username" required>
+                </label>
+                
+                <label for="password">
+                    Password
+                    <input type="password" id="password" name="password" required>
+                </label>
+            </fieldset>
+            
+            {% if error %}
+            <div class="error" style="color: red; margin-bottom: 1rem;">
+                {{ error }}
+            </div>
+            {% endif %}
+            
+            <input type="submit" value="Login">
+        </form>
+    </article>
+</main>
+{% endblock %}

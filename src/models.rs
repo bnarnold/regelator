@@ -481,3 +481,25 @@ pub struct SessionStatistics {
     pub accuracy_percentage: u32,
     pub current_streak: usize,
 }
+
+// Admin models
+#[derive(Queryable, Selectable, Debug, Clone)]
+#[diesel(table_name = admins)]
+pub struct Admin {
+    pub id: String,
+    pub username: String,
+    pub password_hash: String,
+    pub is_active: bool,
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: chrono::NaiveDateTime,
+    pub last_login: Option<chrono::NaiveDateTime>,
+}
+
+#[derive(Insertable, Debug)]
+#[diesel(table_name = admins)]
+pub struct NewAdmin {
+    pub id: String,
+    pub username: String,
+    pub password_hash: String,
+    pub is_active: bool,
+}

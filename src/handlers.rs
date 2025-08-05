@@ -3,12 +3,18 @@ use crate::{
     repository::RuleRepository,
     AppError,
 };
+use argon2::password_hash::{rand_core::OsRng, SaltString};
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use axum::{
     extract::{Form, Path, Query, State},
     response::{Html, Redirect},
 };
+use axum_extra::extract::CookieJar;
 use minijinja::Environment;
 use rand::seq::IndexedRandom;
+use regelator::auth::{
+    clear_admin_cookie, create_admin_cookie, verify_admin_cookie, ADMIN_COOKIE_NAME,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -753,9 +759,16 @@ pub async fn start_quiz_session(
     State(template_env): State<Arc<Environment<'static>>>,
 ) -> Result<Html<String>, AppError> {
     let session_id = uuid::Uuid::now_v7().to_string();
-    
+
     // Redirect to first question with this session
-    get_quiz_question_for_session(repository, template_env, session_id, language, rule_set_slug).await
+    get_quiz_question_for_session(
+        repository,
+        template_env,
+        session_id,
+        language,
+        rule_set_slug,
+    )
+    .await
 }
 
 /// Get a random quiz question (for form redirects)
@@ -765,11 +778,19 @@ pub async fn random_quiz_question(
     State(template_env): State<Arc<Environment<'static>>>,
     Form(form_data): Form<std::collections::HashMap<String, String>>,
 ) -> Result<Html<String>, AppError> {
-    let session_id = form_data.get("session_id")
+    let session_id = form_data
+        .get("session_id")
         .ok_or_else(|| AppError(eyre::eyre!("Session ID required")))?
         .clone();
-    
-    get_quiz_question_for_session(repository, template_env, session_id, language, rule_set_slug).await
+
+    get_quiz_question_for_session(
+        repository,
+        template_env,
+        session_id,
+        language,
+        rule_set_slug,
+    )
+    .await
 }
 
 /// Helper function to get quiz question for a session
@@ -780,7 +801,6 @@ async fn get_quiz_question_for_session(
     language: String,
     rule_set_slug: String,
 ) -> Result<Html<String>, AppError> {
-
     let rule_sets = repository.get_rule_sets()?;
     let rule_set = rule_sets
         .iter()
@@ -792,15 +812,19 @@ async fn get_quiz_question_for_session(
         .ok_or_else(|| AppError(eyre::eyre!("No current version found")))?;
 
     // Get questions not yet attempted in this session
-    let questions = repository.get_unattempted_questions_for_session(
-        &session_id,
-        &rule_set.id,
-        &version.id,
-    )?;
+    let questions =
+        repository.get_unattempted_questions_for_session(&session_id, &rule_set.id, &version.id)?;
 
     if questions.is_empty() {
         // All questions have been attempted - show session complete
-        return show_session_complete(repository, template_env, session_id, language, rule_set_slug).await;
+        return show_session_complete(
+            repository,
+            template_env,
+            session_id,
+            language,
+            rule_set_slug,
+        )
+        .await;
     }
 
     // Select random question (simple approach for now)
@@ -853,7 +877,7 @@ async fn show_session_complete(
         accuracy_percentage: db_stats.accuracy_percentage,
         current_streak: db_stats.current_streak,
     };
-    
+
     // Get missed questions for review and convert to view models
     let db_missed = repository.get_session_missed_questions(&session_id)?;
     let missed_questions: Vec<MissedQuestionView> = db_missed
@@ -864,7 +888,7 @@ async fn show_session_complete(
             explanation: question.explanation,
         })
         .collect();
-    
+
     let template_data = QuizSessionCompleteData {
         session_id,
         stats,
@@ -928,7 +952,7 @@ pub async fn submit_quiz_answer(
     let version = repository
         .get_current_version(&submission.rule_set_slug)?
         .ok_or_else(|| AppError(eyre::eyre!("No current version found")))?;
-    
+
     let all_questions = repository.get_quiz_questions(&rule_set.id, &version.id)?;
     let total_questions_available = all_questions.len();
     let questions_attempted = db_stats.total_questions;
@@ -973,7 +997,229 @@ pub async fn clear_session_data(
 ) -> Result<Redirect, AppError> {
     // Delete all attempts for this session
     repository.clear_session_attempts(&session_id)?;
-    
+
     // Redirect back to quiz home
     Ok(Redirect::to("/quiz"))
+}
+
+// Admin authentication structures
+#[derive(Deserialize)]
+pub struct AdminLoginForm {
+    username: String,
+    password: String,
+}
+
+#[derive(Serialize)]
+struct AdminLoginContext {
+    error: Option<String>,
+}
+
+#[derive(Serialize)]
+struct AdminDashboardContext {
+    username: String,
+}
+
+#[derive(Deserialize)]
+pub struct ChangePasswordForm {
+    current_password: String,
+    new_password: String,
+    confirm_password: String,
+}
+
+#[derive(Serialize)]
+struct ChangePasswordContext {
+    error: Option<String>,
+    success: Option<String>,
+}
+
+/// Show admin login form
+pub async fn admin_login_form(
+    State(templates): State<Arc<Environment<'static>>>,
+) -> Result<Html<String>, AppError> {
+    let context = AdminLoginContext { error: None };
+    let tmpl = templates.get_template("admin_login.html")?;
+    let rendered = tmpl.render(context)?;
+    Ok(Html(rendered))
+}
+
+/// Process admin login
+pub async fn admin_login_submit(
+    State(templates): State<Arc<Environment<'static>>>,
+    State(repository): State<RuleRepository>,
+    jar: CookieJar,
+    Form(form_data): Form<AdminLoginForm>,
+) -> Result<(CookieJar, Html<String>), AppError> {
+    // Find admin by username
+    let admin = match repository.find_admin_by_username(&form_data.username)? {
+        Some(admin) => admin,
+        None => {
+            // Show login form with error
+            let context = AdminLoginContext {
+                error: Some("Invalid username or password".to_string()),
+            };
+            let tmpl = templates.get_template("admin_login.html")?;
+            let rendered = tmpl.render(context)?;
+            return Ok((jar, Html(rendered)));
+        }
+    };
+
+    // Verify password using Argon2
+    let argon2 = Argon2::default();
+    let parsed_hash = PasswordHash::new(&admin.password_hash)
+        .map_err(|e| AppError(eyre::eyre!("Failed to parse password hash: {}", e)))?;
+
+    if argon2
+        .verify_password(form_data.password.as_bytes(), &parsed_hash)
+        .is_ok()
+    {
+        // Password is correct - update last login and create signed cookie
+        repository.update_admin_last_login(&admin.id)?;
+
+        let cookie = create_admin_cookie(admin.id, admin.username.clone())
+            .map_err(|e| AppError(eyre::eyre!("Failed to create admin cookie: {}", e)))?;
+
+        // Show admin dashboard
+        let context = AdminDashboardContext {
+            username: admin.username,
+        };
+        let tmpl = templates.get_template("admin_dashboard.html")?;
+        let rendered = tmpl.render(context)?;
+        Ok((jar.add(cookie), Html(rendered)))
+    } else {
+        // Show login form with error
+        let context = AdminLoginContext {
+            error: Some("Invalid username or password".to_string()),
+        };
+        let tmpl = templates.get_template("admin_login.html")?;
+        let rendered = tmpl.render(context)?;
+        Ok((jar, Html(rendered)))
+    }
+}
+
+/// Show admin dashboard (protected route)
+pub async fn admin_dashboard(
+    State(templates): State<Arc<Environment<'static>>>,
+    jar: CookieJar,
+) -> Result<Html<String>, AppError> {
+    // Verify admin cookie
+    let cookie = jar
+        .get(ADMIN_COOKIE_NAME)
+        .ok_or_else(|| AppError(eyre::eyre!("No admin session")))?;
+
+    let claims = verify_admin_cookie(cookie.value())
+        .map_err(|e| AppError(eyre::eyre!("Invalid admin session: {}", e)))?;
+
+    let context = AdminDashboardContext {
+        username: claims.username,
+    };
+    let tmpl = templates.get_template("admin_dashboard.html")?;
+    let rendered = tmpl.render(context)?;
+    Ok(Html(rendered))
+}
+
+/// Admin logout (clears cookie and redirects to login)
+pub async fn admin_logout(jar: CookieJar) -> Result<(CookieJar, Redirect), AppError> {
+    let clear_cookie = clear_admin_cookie();
+    Ok((jar.add(clear_cookie), Redirect::to("/admin/login")))
+}
+
+/// Show password change form (protected route)
+pub async fn admin_change_password_form(
+    State(templates): State<Arc<Environment<'static>>>,
+    jar: CookieJar,
+) -> Result<Html<String>, AppError> {
+    // Verify admin cookie
+    let cookie = jar
+        .get(ADMIN_COOKIE_NAME)
+        .ok_or_else(|| AppError(eyre::eyre!("No admin session")))?;
+
+    verify_admin_cookie(cookie.value())
+        .map_err(|e| AppError(eyre::eyre!("Invalid admin session: {}", e)))?;
+
+    let context = ChangePasswordContext {
+        error: None,
+        success: None,
+    };
+    let tmpl = templates.get_template("admin_change_password.html")?;
+    let rendered = tmpl.render(context)?;
+    Ok(Html(rendered))
+}
+
+/// Process password change (protected route)
+pub async fn admin_change_password_submit(
+    State(templates): State<Arc<Environment<'static>>>,
+    State(repository): State<RuleRepository>,
+    jar: CookieJar,
+    Form(form_data): Form<ChangePasswordForm>,
+) -> Result<Html<String>, AppError> {
+    // Verify admin cookie and get admin info
+    let cookie = jar
+        .get(ADMIN_COOKIE_NAME)
+        .ok_or_else(|| AppError(eyre::eyre!("No admin session")))?;
+
+    let claims = verify_admin_cookie(cookie.value())
+        .map_err(|e| AppError(eyre::eyre!("Invalid admin session: {}", e)))?;
+
+    // Validate form data
+    if form_data.new_password != form_data.confirm_password {
+        let context = ChangePasswordContext {
+            error: Some("New passwords do not match".to_string()),
+            success: None,
+        };
+        let tmpl = templates.get_template("admin_change_password.html")?;
+        let rendered = tmpl.render(context)?;
+        return Ok(Html(rendered));
+    }
+
+    if form_data.new_password.len() < 8 {
+        let context = ChangePasswordContext {
+            error: Some("New password must be at least 8 characters".to_string()),
+            success: None,
+        };
+        let tmpl = templates.get_template("admin_change_password.html")?;
+        let rendered = tmpl.render(context)?;
+        return Ok(Html(rendered));
+    }
+
+    // Get current admin record to verify current password
+    let admin = repository
+        .find_admin_by_username(&claims.username)?
+        .ok_or_else(|| AppError(eyre::eyre!("Admin not found")))?;
+
+    // Verify current password
+    let argon2 = Argon2::default();
+    let current_parsed_hash = PasswordHash::new(&admin.password_hash)
+        .map_err(|e| AppError(eyre::eyre!("Failed to parse current password hash: {}", e)))?;
+
+    if argon2
+        .verify_password(form_data.current_password.as_bytes(), &current_parsed_hash)
+        .is_err()
+    {
+        let context = ChangePasswordContext {
+            error: Some("Current password is incorrect".to_string()),
+            success: None,
+        };
+        let tmpl = templates.get_template("admin_change_password.html")?;
+        let rendered = tmpl.render(context)?;
+        return Ok(Html(rendered));
+    }
+
+    // Hash new password
+    let salt = SaltString::generate(&mut OsRng);
+    let new_password_hash = argon2
+        .hash_password(form_data.new_password.as_bytes(), &salt)
+        .map_err(|e| AppError(eyre::eyre!("Failed to hash new password: {}", e)))?
+        .to_string();
+
+    // Update password in database (with current hash verification for extra security)
+    repository.update_admin_password(&admin.id, &admin.password_hash, &new_password_hash)?;
+
+    // Show success message
+    let context = ChangePasswordContext {
+        error: None,
+        success: Some("Password changed successfully".to_string()),
+    };
+    let tmpl = templates.get_template("admin_change_password.html")?;
+    let rendered = tmpl.render(context)?;
+    Ok(Html(rendered))
 }

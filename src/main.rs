@@ -201,6 +201,17 @@ async fn main() {
             "/{language}/quiz/{rule_set_slug}/session/{session_id}/clear",
             get(handlers::clear_session_data),
         )
+        // Admin routes
+        .route(
+            "/admin",
+            get(|| async { axum::response::Redirect::to("/admin/login") }),
+        )
+        .route("/admin/login", get(handlers::admin_login_form))
+        .route("/admin/login", post(handlers::admin_login_submit))
+        .route("/admin/dashboard", get(handlers::admin_dashboard))
+        .route("/admin/change-password", get(handlers::admin_change_password_form))
+        .route("/admin/change-password", post(handlers::admin_change_password_submit))
+        .route("/admin/logout", get(handlers::admin_logout))
         .nest_service(
             "/static",
             SetResponseHeaderLayer::if_not_present(

@@ -1,6 +1,18 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    admins (id) {
+        id -> Text,
+        username -> Text,
+        password_hash -> Text,
+        is_active -> Bool,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+        last_login -> Nullable<Timestamp>,
+    }
+}
+
+diesel::table! {
     glossary_content (id) {
         id -> Text,
         term_id -> Text,
@@ -134,6 +146,7 @@ diesel::joinable!(rules -> versions (version_id));
 diesel::joinable!(versions -> rule_sets (rule_set_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    admins,
     glossary_content,
     glossary_terms,
     quiz_answers,

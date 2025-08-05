@@ -682,4 +682,65 @@ impl RuleRepository {
 
         Ok(())
     }
+
+    // Admin authentication methods
+    
+    /// Find admin by username
+    pub fn find_admin_by_username(&self, username_param: &str) -> Result<Option<Admin>> {
+        use crate::schema::admins::dsl::*;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        let result = admins
+            .filter(username.eq(username_param))
+            .filter(is_active.eq(true))
+            .select(Admin::as_select())
+            .first(&mut conn)
+            .optional()
+            .wrap_err("Failed to find admin by username")?;
+
+        Ok(result)
+    }
+
+    /// Update admin last login timestamp
+    pub fn update_admin_last_login(&self, admin_id: &str) -> Result<()> {
+        use crate::schema::admins::dsl::*;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        diesel::update(admins.filter(id.eq(admin_id)))
+            .set(last_login.eq(chrono::Utc::now().naive_utc()))
+            .execute(&mut conn)
+            .wrap_err("Failed to update admin last login")?;
+
+        Ok(())
+    }
+
+    /// Update admin password hash (requires current password hash for verification)
+    pub fn update_admin_password(&self, admin_id: &str, current_password_hash: &str, new_password_hash: &str) -> Result<()> {
+        use crate::schema::admins::dsl::*;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        // Update only if the current password hash matches (prevents unauthorized changes)
+        let rows_affected = diesel::update(admins.filter(id.eq(admin_id).and(password_hash.eq(current_password_hash))))
+            .set(password_hash.eq(new_password_hash))
+            .execute(&mut conn)
+            .wrap_err("Failed to update admin password")?;
+
+        if rows_affected == 0 {
+            return Err(eyre::eyre!("Password update failed - current password incorrect or admin not found"));
+        }
+
+        Ok(())
+    }
 }

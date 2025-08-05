@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Regelator{% endblock %}
+
+{% block content %}
+<main class="container">
+    <header>
+        <h1>Admin Dashboard</h1>
+        <p>Welcome, {{ username }}!</p>
+        <nav>
+            <ul>
+                <li><a href="/admin/change-password" role="button" class="outline">Change Password</a></li>
+                <li><a href="/admin/logout" role="button" class="secondary">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <section>
+        <h2>Quiz Management</h2>
+        <p>Welcome to the admin interface. Here you can manage quiz questions and monitor usage.</p>
+        
+        <div class="grid">
+            <article>
+                <header><h3>Questions</h3></header>
+                <p>Manage quiz questions, answers, and difficulty levels.</p>
+                <footer>
+                    <a href="/admin/questions" role="button">Manage Questions</a>
+                </footer>
+            </article>
+            
+            <article>
+                <header><h3>Statistics</h3></header>
+                <p>View quiz performance and learning analytics.</p>
+                <footer>
+                    <a href="/admin/stats" role="button" class="secondary">View Stats</a>
+                </footer>
+            </article>
+        </div>
+    </section>
+</main>
+{% endblock %}

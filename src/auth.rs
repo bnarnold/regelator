@@ -1,0 +1,109 @@
+use axum_extra::extract::cookie::{Cookie, SameSite};
+use chrono::Utc;
+use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use serde::{Deserialize, Serialize};
+
+// JWT secret - in production this should be from environment/config
+const JWT_SECRET: &str = "your-super-secret-jwt-key-change-in-production";
+const COOKIE_NAME: &str = "admin_session";
+const TOKEN_EXPIRY_SECONDS: i64 = 2 * 3600; // 2 hours
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AdminClaims {
+    pub admin_id: String,
+    pub username: String,
+    pub exp: i64,
+    pub iat: i64,
+}
+
+impl AdminClaims {
+    pub fn new(admin_id: String, username: String) -> Self {
+        let now = Utc::now();
+        Self {
+            admin_id,
+            username,
+            exp: (now + chrono::Duration::seconds(TOKEN_EXPIRY_SECONDS)).timestamp(),
+            iat: now.timestamp(),
+        }
+    }
+
+    pub fn is_expired(&self) -> bool {
+        Utc::now().timestamp() > self.exp
+    }
+}
+
+/// Create a signed JWT cookie for admin authentication
+/// Works on localhost (secure cookies allowed over HTTP on localhost)
+pub fn create_admin_cookie(admin_id: String, username: String) -> Result<Cookie<'static>, jsonwebtoken::errors::Error> {
+    let claims = AdminClaims::new(admin_id, username);
+    let token = encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(JWT_SECRET.as_ref()),
+    )?;
+
+    let cookie = Cookie::build((COOKIE_NAME, token))
+        .http_only(true)
+        .secure(true) // Works on localhost per MDN documentation
+        .same_site(SameSite::Strict)
+        .max_age(time::Duration::seconds(TOKEN_EXPIRY_SECONDS))
+        .path("/admin")
+        .build();
+
+    Ok(cookie)
+}
+
+/// Verify admin cookie and extract claims
+pub fn verify_admin_cookie(cookie_value: &str) -> Result<AdminClaims, AdminAuthError> {
+    let token_data = decode::<AdminClaims>(
+        cookie_value,
+        &DecodingKey::from_secret(JWT_SECRET.as_ref()),
+        &Validation::default(),
+    )?;
+
+    let claims = token_data.claims;
+    
+    if claims.is_expired() {
+        return Err(AdminAuthError::Expired);
+    }
+
+    Ok(claims)
+}
+
+/// Create a cookie that clears the admin session
+pub fn clear_admin_cookie() -> Cookie<'static> {
+    Cookie::build((COOKIE_NAME, ""))
+        .http_only(true)
+        .secure(true)
+        .same_site(SameSite::Strict)
+        .max_age(time::Duration::seconds(0))
+        .path("/admin")
+        .build()
+}
+
+pub const ADMIN_COOKIE_NAME: &str = COOKIE_NAME;
+
+#[derive(Debug)]
+pub enum AdminAuthError {
+    InvalidToken(jsonwebtoken::errors::Error),
+    Expired,
+    Missing,
+}
+
+impl From<jsonwebtoken::errors::Error> for AdminAuthError {
+    fn from(err: jsonwebtoken::errors::Error) -> Self {
+        AdminAuthError::InvalidToken(err)
+    }
+}
+
+impl std::fmt::Display for AdminAuthError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AdminAuthError::InvalidToken(e) => write!(f, "Invalid token: {}", e),
+            AdminAuthError::Expired => write!(f, "Token expired"),
+            AdminAuthError::Missing => write!(f, "No authentication token"),
+        }
+    }
+}
+
+impl std::error::Error for AdminAuthError {}
