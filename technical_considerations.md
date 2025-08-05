@@ -370,4 +370,41 @@ struct SessionStatsView { ... }
 
 ---
 
-*Last updated: 2025-07-28*
+## Production Readiness Implementation Lessons (Epic 5)
+
+### Story 1: Environment-Based Configuration System
+**What worked well:**
+- `config` crate handles TOML files and environment variable merging cleanly
+- `dotenvy` crate seamlessly loads .env files for development
+- Double underscore separator (`__`) works perfectly for nested configuration
+- Environment variable validation catches missing secrets early
+
+**What to improve:**
+- Initial confusion about environment variable naming conventions
+- Documentation needed clearer examples of REGELATOR__ prefix usage
+
+**Technical debt:**
+- None identified - clean implementation
+
+**Key decisions:**
+- Used TOML files for structured configuration with environment-specific overrides
+- Implemented JWT secret as required environment variable (REGELATOR__SECURITY__JWT_SECRET)
+- Environment variable prefix REGELATOR with __ separator for nested fields
+- Added .env support for development convenience while keeping .env.example for documentation
+- All import scripts now use configuration instead of hardcoded values
+
+**Architecture Lessons:**
+- Configuration loading should happen once at startup with validation
+- Environment variables should override TOML settings for deployment flexibility
+- Secrets must never be in TOML files - environment variables only
+- Clear separation between development (.env) and production (environment) configuration
+
+**Production Readiness Achieved:**
+- Eliminated all TODO/production hardcoded values
+- Secure secret management via environment variables
+- Environment-specific deployment configuration
+- Production-ready configuration validation and error handling
+
+---
+
+*Last updated: 2025-08-05*
