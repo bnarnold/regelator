@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Question Preview - Admin{% endblock %}
+
+{% block content %}
+<main class="container">
+    <nav aria-label="breadcrumb">
+        <ul>
+            <li><a href="/admin/dashboard">Admin Dashboard</a></li>
+            <li><a href="/admin/questions">Questions</a></li>
+            <li>Preview Question</li>
+        </ul>
+    </nav>
+
+    <header>
+        <div class="grid">
+            <div>
+                <h1>Question Preview</h1>
+                <p>Preview how this question appears to quiz participants</p>
+            </div>
+            <div style="text-align: right;">
+                <a href="/admin/questions/{{ question.id }}/edit" role="button" class="outline">Edit Question</a>
+                <a href="/admin/questions" role="button" class="secondary">Back to List</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Question Metadata -->
+    <section>
+        <article class="metadata">
+            <div class="grid">
+                <div>
+                    <strong>Status:</strong>
+                    <span class="badge badge-{{ question.status | lower }}">{{ question.status }}</span>
+                </div>
+                <div>
+                    <strong>Difficulty:</strong>
+                    <span class="badge badge-difficulty-{{ question.difficulty_level }}">{{ question.difficulty_level | title }}</span>
+                </div>
+                <div>
+                    <strong>Question ID:</strong>
+                    <code>{{ question.id }}</code>
+                </div>
+                <div>
+                    <strong>Created:</strong>
+                    {{ question.created_at }}
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <!-- Quiz Interface Preview -->
+    <section>
+        <article class="quiz-preview">
+            <header>
+                <h2>How this question appears in quiz</h2>
+            </header>
+            
+            <!-- Simulated quiz question interface -->
+            <div class="quiz-question-container">
+                <h3>{{ question.question_text | markdown | safe }}</h3>
+                
+                <form>
+                    <fieldset>
+                        <legend>Choose the correct answer:</legend>
+                        {% for answer in answers %}
+                        <label>
+                            <input type="radio" name="quiz_answer" value="{{ answer.id }}">
+                            {{ answer.answer_text }}
+                        </label>
+                        {% endfor %}
+                    </fieldset>
+                    
+                    <button type="button" disabled>Submit Answer</button>
+                </form>
+            </div>
+
+            <!-- Explanation Preview -->
+            <details>
+                <summary><strong>Explanation (shown after answering)</strong></summary>
+                <div class="explanation-preview">
+                    {{ question.explanation | markdown | safe }}
+                    
+                    <div class="correct-answer-preview">
+                        <h4>Correct Answer:</h4>
+                        {% for answer in answers %}
+                            {% if answer.is_correct %}
+                            <p><strong>{{ answer.answer_text }}</strong></p>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </details>
+        </article>
+    </section>
+
+    <!-- Answer Analysis -->
+    <section>
+        <h2>Answer Analysis</h2>
+        <div class="overflow-auto">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Answer</th>
+                        <th>Position</th>
+                        <th>Correct</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for answer in answers %}
+                    <tr {% if answer.is_correct %}class="correct-answer"{% endif %}>
+                        <td>{{ answer.answer_text }}</td>
+                        <td>{{ answer.sort_order + 1 }}</td>
+                        <td>
+                            {% if answer.is_correct %}
+                            <span class="badge badge-correct">✓ Correct</span>
+                            {% else %}
+                            <span class="badge badge-incorrect">✗ Incorrect</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<style>
+.quiz-preview {
+    border: 2px solid var(--primary);
+}
+
+.quiz-question-container h3 {
+    margin-top: 0;
+    color: var(--primary);
+}
+
+.badge {
+    padding: 0.2em 0.6em;
+    border-radius: 0.25rem;
+    font-size: 0.8em;
+    font-weight: bold;
+    text-wrap: nowrap;
+}
+
+.badge-active { 
+    background: light-dark(#28a745, #198754); 
+    color: light-dark(white, white); 
+}
+.badge-draft { 
+    background: light-dark(#ffc107, #ffca2c); 
+    color: light-dark(black, black); 
+}
+.badge-archived { 
+    background: light-dark(#6c757d, #495057); 
+    color: light-dark(white, white); 
+}
+
+.badge-difficulty-beginner { 
+    background: light-dark(#17a2b8, #20c997); 
+    color: white; 
+}
+.badge-difficulty-intermediate { 
+    background: light-dark(#fd7e14, #fd7e14); 
+    color: white; 
+}
+.badge-difficulty-advanced { 
+    background: light-dark(#dc3545, #dc3545); 
+    color: white; 
+}
+
+.badge-correct { 
+    background: light-dark(#28a745, #198754); 
+    color: white; 
+}
+.badge-incorrect { 
+    background: light-dark(#dc3545, #dc3545); 
+    color: white; 
+}
+
+.overflow-auto {
+    overflow-x: auto;
+}
+</style>
+{% endblock %}

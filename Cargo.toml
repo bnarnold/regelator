@@ -8,7 +8,7 @@ default-run = "regelator"
 ammonia = "4.1.1"
 argon2 = { version = "0.5.3", features = ["std"] }
 axum = { version = "0.8.4", features = ["macros"] }
-axum-extra = { version = "0.10.1", features = ["cookie"] }
+axum-extra = { version = "0.10.1", features = ["cookie", "form", "query"] }
 chrono = { version = "0.4.41", features = ["serde"] }
 config = "0.15.13"
 diesel = { version = "2.2.12", features = ["chrono", "r2d2", "sqlite"] }

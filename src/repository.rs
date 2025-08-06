@@ -743,4 +743,235 @@ impl RuleRepository {
 
         Ok(())
     }
+
+    // Question Management Methods
+
+    /// Get all questions with optional filtering
+    pub fn get_questions_filtered(
+        &self,
+        status_filter: Option<crate::models::quiz::QuestionStatus>,
+        difficulty_filter: Option<&str>,
+        search_query: Option<&str>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Result<Vec<crate::models::quiz::QuizQuestion>> {
+        use crate::schema::quiz_questions::dsl::*;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        let mut query = quiz_questions.into_boxed();
+
+        // Apply status filter  
+        if let Some(status_val) = status_filter {
+            query = query.filter(status.eq(status_val));
+        }
+
+        // Apply difficulty filter
+        if let Some(difficulty) = difficulty_filter {
+            query = query.filter(difficulty_level.eq(difficulty));
+        }
+
+        // Apply search filter
+        if let Some(search) = search_query {
+            let search_pattern = format!("%{}%", search);
+            query = query.filter(
+                question_text.like(search_pattern.clone())
+                    .or(explanation.like(search_pattern))
+            );
+        }
+
+        // Apply pagination
+        if let Some(limit_val) = limit {
+            query = query.limit(limit_val);
+        }
+        if let Some(offset_val) = offset {
+            query = query.offset(offset_val);
+        }
+
+        let results = query
+            .select(crate::models::quiz::QuizQuestion::as_select())
+            .load(&mut conn)
+            .wrap_err("Failed to load filtered questions")?;
+
+        Ok(results)
+    }
+
+    /// Get question by ID with answers
+    pub fn get_question_with_answers(&self, question_id: &str) -> Result<Option<(crate::models::quiz::QuizQuestion, Vec<crate::models::quiz::QuizAnswer>)>> {
+        use crate::schema::quiz_questions::dsl as q_dsl;
+        use crate::schema::quiz_answers::dsl as a_dsl;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        // Get the question
+        let question: Option<crate::models::quiz::QuizQuestion> = q_dsl::quiz_questions
+            .filter(q_dsl::id.eq(question_id))
+            .select(crate::models::quiz::QuizQuestion::as_select())
+            .first(&mut conn)
+            .optional()
+            .wrap_err("Failed to load question")?;
+
+        if let Some(question) = question {
+            // Get the answers
+            let answers: Vec<crate::models::quiz::QuizAnswer> = a_dsl::quiz_answers
+                .filter(a_dsl::question_id.eq(question_id))
+                .order(a_dsl::sort_order.asc())
+                .select(crate::models::quiz::QuizAnswer::as_select())
+                .load(&mut conn)
+                .wrap_err("Failed to load question answers")?;
+
+            Ok(Some((question, answers)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Create a new question with answers
+    pub fn create_question_with_answers(
+        &self,
+        new_question: crate::models::quiz::NewQuizQuestion,
+        new_answers: Vec<crate::models::quiz::NewQuizAnswer>,
+    ) -> Result<crate::models::quiz::QuizQuestion> {
+        use crate::schema::quiz_questions::dsl as q_dsl;
+        use crate::schema::quiz_answers::dsl as a_dsl;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        // Start transaction
+        conn.transaction(|conn| {
+            // Insert question
+            diesel::insert_into(q_dsl::quiz_questions)
+                .values(&new_question)
+                .execute(conn)
+                .wrap_err("Failed to insert question")?;
+
+            // Insert answers
+            if !new_answers.is_empty() {
+                diesel::insert_into(a_dsl::quiz_answers)
+                    .values(&new_answers)
+                    .execute(conn)
+                    .wrap_err("Failed to insert answers")?;
+            }
+
+            // Return the created question
+            let created_question = q_dsl::quiz_questions
+                .filter(q_dsl::id.eq(&new_question.id))
+                .select(crate::models::quiz::QuizQuestion::as_select())
+                .first(conn)
+                .wrap_err("Failed to load created question")?;
+
+            Ok(created_question)
+        })
+    }
+
+    /// Update question
+    pub fn update_question(
+        &self,
+        question_id: &str,
+        question_text_val: &str,
+        explanation_val: &str,
+        difficulty_level_val: &str,
+        status_val: crate::models::quiz::QuestionStatus,
+    ) -> Result<()> {
+        use crate::schema::quiz_questions::dsl::*;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        diesel::update(quiz_questions.filter(id.eq(question_id)))
+            .set((
+                question_text.eq(question_text_val),
+                explanation.eq(explanation_val),
+                difficulty_level.eq(difficulty_level_val),
+                status.eq(status_val),
+            ))
+            .execute(&mut conn)
+            .wrap_err("Failed to update question")?;
+
+        Ok(())
+    }
+
+    /// Update question status
+    pub fn update_question_status(&self, question_id: &str, new_status: crate::models::quiz::QuestionStatus) -> Result<()> {
+        use crate::schema::quiz_questions::dsl::*;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        diesel::update(quiz_questions.filter(id.eq(question_id)))
+            .set(status.eq(new_status))
+            .execute(&mut conn)
+            .wrap_err("Failed to update question status")?;
+
+        Ok(())
+    }
+
+    /// Delete question and its answers
+    pub fn delete_question(&self, question_id: &str) -> Result<()> {
+        use crate::schema::quiz_questions::dsl as q_dsl;
+        use crate::schema::quiz_answers::dsl as a_dsl;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        conn.transaction(|conn| {
+            // Delete answers first (foreign key constraint)
+            diesel::delete(a_dsl::quiz_answers.filter(a_dsl::question_id.eq(question_id)))
+                .execute(conn)
+                .wrap_err("Failed to delete question answers")?;
+
+            // Delete question
+            diesel::delete(q_dsl::quiz_questions.filter(q_dsl::id.eq(question_id)))
+                .execute(conn)
+                .wrap_err("Failed to delete question")?;
+
+            Ok(())
+        })
+    }
+
+    /// Update question answers (replace all)
+    pub fn update_question_answers(
+        &self,
+        question_id_val: &str,
+        new_answers: Vec<crate::models::quiz::NewQuizAnswer>,
+    ) -> Result<()> {
+        use crate::schema::quiz_answers::dsl::*;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        conn.transaction(|conn| {
+            // Delete existing answers
+            diesel::delete(quiz_answers.filter(question_id.eq(question_id_val)))
+                .execute(conn)
+                .wrap_err("Failed to delete existing answers")?;
+
+            // Insert new answers
+            if !new_answers.is_empty() {
+                diesel::insert_into(quiz_answers)
+                    .values(&new_answers)
+                    .execute(conn)
+                    .wrap_err("Failed to insert new answers")?;
+            }
+
+            Ok(())
+        })
+    }
 }

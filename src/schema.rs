@@ -78,6 +78,7 @@ diesel::table! {
         difficulty_level -> Text,
         created_at -> Text,
         updated_at -> Text,
+        status -> Text,
     }
 }
 

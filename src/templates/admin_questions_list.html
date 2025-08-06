@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Question Management - Admin{% endblock %}
+
+{% block content %}
+<main class="container">
+    <nav aria-label="breadcrumb">
+        <ul>
+            <li><a href="/admin/dashboard">Admin Dashboard</a></li>
+            <li>Question Management</li>
+        </ul>
+    </nav>
+
+    <header>
+        <h1>Quiz Question Management</h1>
+        <p>Manage quiz questions for {{ rule_set_name }}</p>
+    </header>
+
+    <!-- Actions Bar -->
+    <section>
+        <div class="grid">
+            <div>
+                <a href="/admin/questions/new" role="button">New Question</a>
+                <a href="/admin/questions/import" role="button" class="outline">Import Questions</a>
+            </div>
+            <div>
+                <!-- Search and Filter Form -->
+                <form method="get">
+                    <fieldset class="grid">
+                        <input type="search" name="search" placeholder="Search questions..." value="{{ search_query or '' }}">
+                        <select name="status">
+                            <option value="">All Status</option>
+                            <option value="active" {% if status_filter == "active" %}selected{% endif %}>Active</option>
+                            <option value="draft" {% if status_filter == "draft" %}selected{% endif %}>Draft</option>
+                            <option value="archived" {% if status_filter == "archived" %}selected{% endif %}>Archived</option>
+                        </select>
+                        <select name="difficulty">
+                            <option value="">All Difficulty</option>
+                            <option value="beginner" {% if difficulty_filter == "beginner" %}selected{% endif %}>Beginner</option>
+                            <option value="intermediate" {% if difficulty_filter == "intermediate" %}selected{% endif %}>Intermediate</option>
+                            <option value="advanced" {% if difficulty_filter == "advanced" %}selected{% endif %}>Advanced</option>
+                        </select>
+                        <button type="submit">Filter</button>
+                    </fieldset>
+                </form>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- Questions Table -->
+    <section>
+        {% if questions %}
+        <div class="overflow-auto">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Question</th>
+                        <th>Difficulty</th>
+                        <th>Rule Ref</th>
+                        <th>Usage Stats</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for question in questions %}
+                    <tr>
+                        <td>
+                            <span class="badge badge-{{ question.question.status | lower }}">{{ question.question.status | title }}</span>
+                        </td>
+                        <td>
+                            <strong>{{ question.question.question_text | markdown | safe }}</strong>
+                            {% if question.question.explanation %}
+                            <br><small class="text-muted">{{ question.question.explanation | markdown | safe }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge badge-difficulty-{{ question.question.difficulty_level }}">
+                                {{ question.question.difficulty_level | title }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if question.rule_references %}
+                                {% for rule_ref in question.rule_references %}
+                                <small><a href="/en/rules/{{ rule_set_slug }}/{{ rule_ref.slug }}">{{ rule_ref.number }}</a></small>
+                                {% if not loop.last %}, {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <small class="text-muted">None</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if question.stats %}
+                            <small>
+                                {{ question.stats.attempts }} attempts<br>
+                                {{ question.stats.success_rate }}% success
+                            </small>
+                            {% else %}
+                            <small class="text-muted">No data</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="button-group">
+                                <a href="/admin/questions/{{ question.question.id }}/edit" role="button" class="outline secondary small">Edit</a>
+                                <a href="/admin/questions/{{ question.question.id }}/preview" role="button" class="outline small">Preview</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+
+        {% else %}
+        <article class="text-center">
+            <h3>No Questions Found</h3>
+            <p>{% if search_query %}No questions match your search criteria.{% else %}No quiz questions have been created yet.{% endif %}</p>
+            <a href="/admin/questions/new" role="button">Create First Question</a>
+        </article>
+        {% endif %}
+    </section>
+
+    <!-- Statistics Summary -->
+    {% if stats %}
+    <section>
+        <h2>Question Statistics</h2>
+        <div class="grid">
+            <article>
+                <h4>{{ stats.total_questions }}</h4>
+                <p>Total Questions</p>
+            </article>
+            <article>
+                <h4>{{ stats.active_questions }}</h4>
+                <p>Active Questions</p>
+            </article>
+            <article>
+                <h4>{{ stats.draft_questions }}</h4>
+                <p>Draft Questions</p>
+            </article>
+            <article>
+                <h4>{{ stats.avg_success_rate }}%</h4>
+                <p>Average Success Rate</p>
+            </article>
+        </div>
+    </section>
+    {% endif %}
+</main>
+
+
+<style>
+.badge {
+    padding: 0.2em 0.6em;
+    border-radius: 0.25rem;
+    font-size: 0.8em;
+    font-weight: bold;
+    text-wrap: nowrap;
+}
+
+.badge-active { background: #28a745; color: white; }
+.badge-draft { background: #ffc107; color: black; }
+.badge-archived { background: #6c757d; color: white; }
+
+.badge-difficulty-beginner { background: #17a2b8; color: white; }
+.badge-difficulty-intermediate { background: #fd7e14; color: white; }
+.badge-difficulty-advanced { background: #dc3545; color: white; }
+
+.button-group {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.small {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.text-muted {
+    opacity: 0.7;
+}
+
+.overflow-auto {
+    overflow-x: auto;
+}
+</style>
+{% endblock %}

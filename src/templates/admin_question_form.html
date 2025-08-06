@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}{{ "Edit" if question else "New" }} Question - Admin{% endblock %}
+
+{% block content %}
+<main class="container">
+    <nav aria-label="breadcrumb">
+        <ul>
+            <li><a href="/admin/dashboard">Admin Dashboard</a></li>
+            <li><a href="/admin/questions">Questions</a></li>
+            <li>{{ "Edit Question" if question else "New Question" }}</li>
+        </ul>
+    </nav>
+
+    <header>
+        <h1>{{ "Edit Question" if question else "Create New Question" }}</h1>
+        {% if question %}
+        <p>Question ID: {{ question.id }}</p>
+        {% endif %}
+    </header>
+
+    {% if errors %}
+    <article class="error">
+        <h4>Please fix the following errors:</h4>
+        <ul>
+            {% for error in errors %}
+            <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    </article>
+    {% endif %}
+
+    <form method="post" action="{{ "/admin/questions/" + question.id + "/edit" if question else "/admin/questions/new" }}">
+        <!-- Question Details -->
+        <section>
+            <h2>Question Details</h2>
+            
+            <fieldset class="grid">
+                <label>
+                    Status
+                    <select name="status">
+                        <option value="draft" {% if (question and question.status == "draft") or (not question) %}selected{% endif %}>Draft</option>
+                        <option value="active" {% if question and question.status == "active" %}selected{% endif %}>Active</option>
+                        <option value="archived" {% if question and question.status == "archived" %}selected{% endif %}>Archived</option>
+                    </select>
+                    <small>Draft questions are not shown to users</small>
+                </label>
+
+                <label>
+                    Difficulty Level
+                    <select name="difficulty_level">
+                        <option value="beginner" {% if (question and question.difficulty_level == "beginner") or (not question) %}selected{% endif %}>Beginner</option>
+                        <option value="intermediate" {% if question and question.difficulty_level == "intermediate" %}selected{% endif %}>Intermediate</option>
+                        <option value="advanced" {% if question and question.difficulty_level == "advanced" %}selected{% endif %}>Advanced</option>
+                    </select>
+                </label>
+            </fieldset>
+
+            <label>
+                Question Text *
+                <textarea name="question_text" rows="3" required>{{ question.question_text if question else "" }}</textarea>
+            </label>
+
+            <label>
+                Explanation *
+                <textarea name="explanation" rows="4" required>{{ question.explanation if question else "" }}</textarea>
+                <small>Shown to users after they answer</small>
+            </label>
+        </section>
+
+        <!-- Multiple Choice Answers -->
+        <section>
+            <h2>Answer Options</h2>
+            
+            <div id="answers-container">
+                {% if question and answers %}
+                    {% for answer in answers %}
+                    <fieldset>
+                        <legend>Answer {{ loop.index }}</legend>
+                        <div class="grid">
+                            <label>
+                                <input type="radio" name="correct_answer" value="{{ loop.index0 }}" {% if answer.is_correct %}checked{% endif %}>
+                                Correct Answer
+                            </label>
+                            <label>
+                                Answer Text
+                                <input type="text" name="answers" value="{{ answer.answer_text }}">
+                            </label>
+                        </div>
+                    </fieldset>
+                    {% endfor %}
+                {% else %}
+                    <!-- Default: 4 empty answer options -->
+                    {% for i in range(4) %}
+                    <fieldset>
+                        <legend>Answer {{ i + 1 }}</legend>
+                        <div class="grid">
+                            <label>
+                                <input type="radio" name="correct_answer" value="{{ i }}" {% if i == 0 %}checked{% endif %}>
+                                Correct Answer
+                            </label>
+                            <label>
+                                Answer Text
+                                <input type="text" name="answers" placeholder="Enter answer option...">
+                            </label>
+                        </div>
+                    </fieldset>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- Rule References -->
+        <section>
+            <label>
+                Rule References (optional)
+                <input type="text" name="rule_references" value="{{ rule_references | join(', ') if rule_references else '' }}" placeholder="e.g., 15.3, 8.1">
+                <small>Comma-separated rule numbers/sections</small>
+            </label>
+        </section>
+
+        <!-- Form Actions -->
+        <section>
+            <div class="grid">
+                <div>
+                    <button type="submit">{{ "Update Question" if question else "Create Question" }}</button>
+                </div>
+                <div style="text-align: right;">
+                    <a href="/admin/questions" role="button" class="secondary">Cancel</a>
+                    {% if question %}
+                    <button type="submit" name="action" value="delete" class="outline" 
+                            onclick="return confirm('Delete this question?')">Delete</button>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+    </form>
+</main>
+
+<style>
+.error {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+</style>
+{% endblock %}
