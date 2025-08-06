@@ -15,7 +15,8 @@ This document captures technical decisions, lessons learned, and implementation 
 - Type-safe routing and middleware
 
 **Lessons Learned:**
-- *[To be filled as we encounter issues/successes]*
+- Axum's State extraction works seamlessly with new modular structure
+- Re-exports in mod.rs maintain backward compatibility during refactoring
 
 ### Frontend: HTMX + Pico.css
 **Decision:** Server-side rendered HTML with HTMX for interactivity
@@ -405,6 +406,41 @@ struct SessionStatsView { ... }
 - Environment-specific deployment configuration
 - Production-ready configuration validation and error handling
 
+### Story 1.1: Code Organization and Module Structure
+**What worked well:**
+- Domain-based module boundaries (web, quiz, admin) align with team structure
+- Rust's module system with re-exports maintains backward compatibility during refactoring
+- All 23 existing tests pass without modification after restructuring
+- Rust-code-reviewer agent confirmed production readiness of restructured code
+
+**What to improve:**
+- Minor unused variable warnings from restructuring (easily fixed with underscore prefixes)
+- Could add module-level documentation for better developer onboarding
+- Some error messages could be more descriptive for production debugging
+
+**Technical debt:**
+- Eliminated: Monolithic 1,700+ line files that were difficult to navigate
+- Created: Well-organized modules with clear responsibilities
+
+**Key decisions:**
+- Split handlers.rs (1,234 lines) → handlers/{web,quiz,admin}.rs (555+261+234 lines)
+- Split models.rs (505 lines) → models/{core,quiz,admin}.rs (193+252+25 lines)  
+- Used `pub use *` in mod.rs files for seamless API compatibility
+- Chose functional domain boundaries over technical layer boundaries
+
+**Architecture Lessons:**
+- Large files become maintenance bottlenecks as team grows
+- Domain-driven module organization scales better than technical layer organization
+- Re-export patterns in mod.rs enable safe refactoring without breaking dependent code
+- Code review tools (rust-code-reviewer agent) provide valuable feedback on structural changes
+- TodoWrite tool essential for tracking complex multi-step refactoring tasks
+
+**Production Readiness Achieved:**
+- Improved code maintainability for team development
+- Better separation of concerns for debugging and monitoring
+- Foundation for implementing logging, metrics, and observability
+- Reduced cognitive load when working on specific functional areas
+
 ---
 
-*Last updated: 2025-08-05*
+*Last updated: 2025-08-06*
