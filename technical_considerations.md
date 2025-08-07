@@ -441,6 +441,48 @@ struct SessionStatsView { ... }
 - Foundation for implementing logging, metrics, and observability
 - Reduced cognitive load when working on specific functional areas
 
+### Story 1.2: Admin Authentication System Unification
+**What worked well:**
+- AdminToken newtype wrapper provides compile-time authentication guarantees
+- Axum's FromRequestParts trait enables clean extractor implementation
+- Automatic redirect to login page improves user experience
+- Native async fn in trait support eliminates need for async_trait macro
+- Rust's type system enforces authentication - handlers cannot compile without AdminToken parameter
+
+**What to improve:**
+- Initial attempt included unnecessary Clone trait requirement
+- Had to adjust IntoResponse implementation for proper admin flow redirects
+
+**Technical debt:**
+- Eliminated: 60+ lines of duplicated authentication logic across 8 admin handlers
+- Created: Clean, centralized authentication system with compile-time safety
+
+**Key decisions:**
+- Used newtype pattern (AdminToken(AdminClaims)) to prevent manual construction
+- Implemented automatic redirect to /admin/login for authentication failures
+- Made AdminToken extractor return admin context (username, admin_id) directly to handlers
+- Leveraged Axum's native async fn in trait support instead of async_trait macro
+- Authentication logic now centralized in single extractor implementation
+
+**Architecture Lessons:**
+- Axum extractors provide excellent abstraction for cross-cutting concerns like authentication
+- Newtype wrappers with private fields ensure security invariants cannot be bypassed
+- FromRequestParts enables early request processing before handler execution
+- Redirect responses for authentication failures provide better UX than HTTP error codes
+- Compile-time authentication guarantees prevent accidental security holes
+
+**Security Benefits:**
+- **Impossible to Forget**: Handlers must accept AdminToken parameter or compilation fails
+- **Centralized Logic**: Single point of authentication reduces audit surface
+- **Automatic Context**: Admin info available without additional database lookups
+- **User Experience**: Authentication failures redirect to login instead of showing error pages
+
+**Development Benefits:**
+- **Code Maintainability**: Eliminated duplicated authentication boilerplate
+- **Type Safety**: Rust's type system enforces authentication requirements at compile time
+- **Rich Context**: Handlers get admin user info (username, admin_id) directly from token
+- **Future-Proof**: New admin endpoints automatically require authentication token
+
 ---
 
-*Last updated: 2025-08-06*
+*Last updated: 2025-08-07*

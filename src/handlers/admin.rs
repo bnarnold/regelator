@@ -8,7 +8,7 @@ use axum::{
 use axum_extra::extract::{CookieJar, Form, Query};
 use minijinja::Environment;
 use regelator::auth::{
-    clear_admin_cookie, create_admin_cookie, verify_admin_cookie, ADMIN_COOKIE_NAME,
+    clear_admin_cookie, create_admin_cookie, AdminToken,
 };
 use regelator::config::Config;
 use serde::{Deserialize, Serialize};
@@ -117,19 +117,10 @@ pub async fn admin_login_submit(
 /// Show admin dashboard (protected route)
 pub async fn admin_dashboard(
     State(templates): State<Arc<Environment<'static>>>,
-    State(config): State<Config>,
-    jar: CookieJar,
+    admin: AdminToken,
 ) -> Result<Html<String>, AppError> {
-    // Verify admin cookie
-    let cookie = jar
-        .get(ADMIN_COOKIE_NAME)
-        .ok_or_else(|| AppError(eyre::eyre!("No admin session")))?;
-
-    let claims = verify_admin_cookie(cookie.value(), &config.security.jwt_secret)
-        .map_err(|e| AppError(eyre::eyre!("Invalid admin session: {}", e)))?;
-
     let context = AdminDashboardContext {
-        username: claims.username,
+        username: admin.username().to_string(),
     };
     let tmpl = templates.get_template("admin_dashboard.html")?;
     let rendered = tmpl.render(context)?;
@@ -145,17 +136,8 @@ pub async fn admin_logout(jar: CookieJar) -> Result<(CookieJar, Redirect), AppEr
 /// Show password change form (protected route)
 pub async fn admin_change_password_form(
     State(templates): State<Arc<Environment<'static>>>,
-    State(config): State<Config>,
-    jar: CookieJar,
+    _admin: AdminToken,
 ) -> Result<Html<String>, AppError> {
-    // Verify admin cookie
-    let cookie = jar
-        .get(ADMIN_COOKIE_NAME)
-        .ok_or_else(|| AppError(eyre::eyre!("No admin session")))?;
-
-    verify_admin_cookie(cookie.value(), &config.security.jwt_secret)
-        .map_err(|e| AppError(eyre::eyre!("Invalid admin session: {}", e)))?;
-
     let context = ChangePasswordContext {
         error: None,
         success: None,
@@ -169,17 +151,9 @@ pub async fn admin_change_password_form(
 pub async fn admin_change_password_submit(
     State(templates): State<Arc<Environment<'static>>>,
     State(repository): State<RuleRepository>,
-    State(config): State<Config>,
-    jar: CookieJar,
+    admin: AdminToken,
     Form(form_data): Form<ChangePasswordForm>,
 ) -> Result<Html<String>, AppError> {
-    // Verify admin cookie and get admin info
-    let cookie = jar
-        .get(ADMIN_COOKIE_NAME)
-        .ok_or_else(|| AppError(eyre::eyre!("No admin session")))?;
-
-    let claims = verify_admin_cookie(cookie.value(), &config.security.jwt_secret)
-        .map_err(|e| AppError(eyre::eyre!("Invalid admin session: {}", e)))?;
 
     // Validate form data
     if form_data.new_password != form_data.confirm_password {
@@ -203,13 +177,13 @@ pub async fn admin_change_password_submit(
     }
 
     // Get current admin record to verify current password
-    let admin = repository
-        .find_admin_by_username(&claims.username)?
+    let admin_record = repository
+        .find_admin_by_username(admin.username())?
         .ok_or_else(|| AppError(eyre::eyre!("Admin not found")))?;
 
     // Verify current password
     let argon2 = Argon2::default();
-    let current_parsed_hash = PasswordHash::new(&admin.password_hash)
+    let current_parsed_hash = PasswordHash::new(&admin_record.password_hash)
         .map_err(|e| AppError(eyre::eyre!("Failed to parse current password hash: {}", e)))?;
 
     if argon2
@@ -233,7 +207,7 @@ pub async fn admin_change_password_submit(
         .to_string();
 
     // Update password in database (with current hash verification for extra security)
-    repository.update_admin_password(&admin.id, &admin.password_hash, &new_password_hash)?;
+    repository.update_admin_password(&admin_record.id, &admin_record.password_hash, &new_password_hash)?;
 
     // Show success message
     let context = ChangePasswordContext {
@@ -299,16 +273,9 @@ struct QuestionPreviewContext {
 pub async fn questions_list(
     State(templates): State<Arc<Environment<'static>>>,
     State(repository): State<RuleRepository>,
-    State(config): State<Config>,
-    jar: CookieJar,
+    _admin: AdminToken,
     Query(filters): Query<QuestionFilters>,
 ) -> Result<Html<String>, AppError> {
-    // Verify admin authentication
-    let cookie = jar
-        .get(ADMIN_COOKIE_NAME)
-        .ok_or_else(|| AppError(eyre::eyre!("Admin authentication required")))?;
-    let _claims = verify_admin_cookie(cookie.value(), &config.security.jwt_secret)
-        .map_err(|_| AppError(eyre::eyre!("Admin authentication required")))?;
 
     // Parse status filter
     let status_filter = filters
@@ -350,15 +317,8 @@ pub async fn questions_list(
 /// Show new question form
 pub async fn new_question_form(
     State(templates): State<Arc<Environment<'static>>>,
-    State(config): State<Config>,
-    jar: CookieJar,
+    _admin: AdminToken,
 ) -> Result<Html<String>, AppError> {
-    // Verify admin authentication
-    let cookie = jar
-        .get(ADMIN_COOKIE_NAME)
-        .ok_or_else(|| AppError(eyre::eyre!("Admin authentication required")))?;
-    let _claims = verify_admin_cookie(cookie.value(), &config.security.jwt_secret)
-        .map_err(|_| AppError(eyre::eyre!("Admin authentication required")))?;
 
     let context = QuestionFormContext {
         question: None,
@@ -373,18 +333,10 @@ pub async fn new_question_form(
 
 /// Create new question
 pub async fn create_question(
-    State(templates): State<Arc<Environment<'static>>>,
     State(repository): State<RuleRepository>,
-    State(config): State<Config>,
-    jar: CookieJar,
+    _admin: AdminToken,
     Form(form_data): Form<QuestionForm>,
 ) -> Result<Redirect, AppError> {
-    // Verify admin authentication
-    let cookie = jar
-        .get(ADMIN_COOKIE_NAME)
-        .ok_or_else(|| AppError(eyre::eyre!("Admin authentication required")))?;
-    let _claims = verify_admin_cookie(cookie.value(), &config.security.jwt_secret)
-        .map_err(|_| AppError(eyre::eyre!("Admin authentication required")))?;
 
     // Basic validation
     let mut errors = Vec::new();
@@ -456,16 +408,9 @@ pub async fn create_question(
 pub async fn edit_question_form(
     State(templates): State<Arc<Environment<'static>>>,
     State(repository): State<RuleRepository>,
-    State(config): State<Config>,
-    jar: CookieJar,
+    _admin: AdminToken,
     Path(question_id): Path<String>,
 ) -> Result<Html<String>, AppError> {
-    // Verify admin authentication
-    let cookie = jar
-        .get(ADMIN_COOKIE_NAME)
-        .ok_or_else(|| AppError(eyre::eyre!("Admin authentication required")))?;
-    let _claims = verify_admin_cookie(cookie.value(), &config.security.jwt_secret)
-        .map_err(|_| AppError(eyre::eyre!("Admin authentication required")))?;
 
     // Get question with answers
     let (question, answers) = repository
@@ -487,16 +432,9 @@ pub async fn edit_question_form(
 pub async fn preview_question(
     State(templates): State<Arc<Environment<'static>>>,
     State(repository): State<RuleRepository>,
-    State(config): State<Config>,
-    jar: CookieJar,
+    _admin: AdminToken,
     Path(question_id): Path<String>,
 ) -> Result<Html<String>, AppError> {
-    // Verify admin authentication
-    let cookie = jar
-        .get(ADMIN_COOKIE_NAME)
-        .ok_or_else(|| AppError(eyre::eyre!("Admin authentication required")))?;
-    let _claims = verify_admin_cookie(cookie.value(), &config.security.jwt_secret)
-        .map_err(|_| AppError(eyre::eyre!("Admin authentication required")))?;
 
     // Get question with answers
     let (question, answers) = repository
@@ -516,17 +454,10 @@ pub async fn preview_question(
 /// Update question
 pub async fn update_question(
     State(repository): State<RuleRepository>,
-    State(config): State<Config>,
-    jar: CookieJar,
+    _admin: AdminToken,
     Path(question_id): Path<String>,
     Form(form_data): Form<QuestionForm>,
 ) -> Result<Redirect, AppError> {
-    // Verify admin authentication
-    let cookie = jar
-        .get(ADMIN_COOKIE_NAME)
-        .ok_or_else(|| AppError(eyre::eyre!("Admin authentication required")))?;
-    let _claims = verify_admin_cookie(cookie.value(), &config.security.jwt_secret)
-        .map_err(|_| AppError(eyre::eyre!("Admin authentication required")))?;
 
     // Handle delete action
     if form_data.action.as_deref() == Some("delete") {

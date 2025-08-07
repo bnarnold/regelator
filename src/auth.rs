@@ -1,3 +1,8 @@
+use axum::{
+    extract::{FromRef, FromRequestParts},
+    http::request::Parts,
+    response::{IntoResponse, Redirect, Response},
+};
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use chrono::Utc;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
@@ -109,3 +114,70 @@ impl std::fmt::Display for AdminAuthError {
 }
 
 impl std::error::Error for AdminAuthError {}
+
+impl IntoResponse for AdminAuthError {
+    fn into_response(self) -> Response {
+        // For admin authentication failures, redirect to login page
+        Redirect::to("/admin/login").into_response()
+    }
+}
+
+/// AdminToken provides authenticated admin context to handlers
+/// Newtype wrapper around AdminClaims that can only be constructed via authentication
+#[derive(Debug)]
+pub struct AdminToken(AdminClaims);
+
+impl AdminToken {
+    /// Get the admin ID
+    pub fn admin_id(&self) -> &str {
+        &self.0.admin_id
+    }
+    
+    /// Get the username
+    pub fn username(&self) -> &str {
+        &self.0.username
+    }
+    
+    /// Get the expiration timestamp
+    pub fn exp(&self) -> i64 {
+        self.0.exp
+    }
+    
+    /// Get the issued at timestamp
+    pub fn iat(&self) -> i64 {
+        self.0.iat
+    }
+
+    /// Internal constructor - only used by the extractor
+    fn from_verified_claims(claims: AdminClaims) -> Self {
+        Self(claims)
+    }
+}
+
+impl<S> FromRequestParts<S> for AdminToken 
+where
+    S: Send + Sync,
+    crate::config::Config: axum::extract::FromRef<S>,
+{
+    type Rejection = AdminAuthError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        // Extract configuration to get JWT secret
+        let config = crate::config::Config::from_ref(state);
+        
+        // Extract cookie jar
+        let jar = axum_extra::extract::CookieJar::from_request_parts(parts, state)
+            .await
+            .map_err(|_| AdminAuthError::Missing)?;
+
+        // Get admin cookie
+        let cookie = jar
+            .get(ADMIN_COOKIE_NAME)
+            .ok_or(AdminAuthError::Missing)?;
+
+        // Verify cookie and get claims
+        let claims = verify_admin_cookie(cookie.value(), &config.security.jwt_secret)?;
+
+        Ok(AdminToken::from_verified_claims(claims))
+    }
+}

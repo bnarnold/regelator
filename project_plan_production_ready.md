@@ -92,6 +92,43 @@ This document tracks development of production-ready deployment, monitoring, sec
 - Foundation for improved logging, monitoring, and debugging
 - Reduced cognitive load when working on specific features
 
+### Story 1.2: Admin Authentication System Unification ✅
+**Goal:** Eliminate code duplication in admin authentication and provide useful admin context to handlers
+
+**Acceptance Criteria:**
+- [x] Create AdminToken extractor containing admin user information (username, admin_id)
+- [x] Replace duplicated authentication logic in 8+ admin handlers
+- [x] Implement proper HTTP status codes (401) for authentication failures
+- [x] Provide admin context directly to handlers without additional lookups
+- [x] Maintain existing functionality while improving code maintainability
+- [x] Add comprehensive error handling for authentication edge cases
+
+**Current Problem:**
+- Authentication logic duplicated across admin handlers (~6 lines per handler)
+- Inconsistent error handling and status codes
+- Risk of missing authentication checks in new admin endpoints
+- Handlers need to re-extract user info after authentication
+
+**Technical Implementation:**
+- **AdminToken Struct**: Contains `username`, `admin_id`, and other admin claims
+- **Extractor Implementation**: Implements `FromRequestParts` with JWT verification
+- **Compile-time Safety**: Handler signatures require AdminToken parameter
+- **Direct Context Access**: Handlers get admin info directly from token
+- **Centralized Auth Logic**: Move JWT verification into extractor implementation
+- **Clean Handlers**: Remove duplicated authentication and context extraction
+
+**Security Benefits:**
+- **Impossible to Forget**: Compilation fails if admin handler lacks authentication
+- **Consistent Error Handling**: Standardized authentication failure responses  
+- **Audit Trail Ready**: Admin context available for logging actions
+- **Reduced Attack Surface**: Centralized authentication logic easier to audit
+
+**Development Benefits:**
+- **Code Maintainability**: Single source of truth for admin authentication
+- **Rich Context**: Handlers get admin user info without additional database calls
+- **Type System Leverage**: Rust's type system enforces security requirements
+- **Future-Proof**: New admin endpoints automatically require authentication token
+
 ### Story 2: Logging and Error Handling Infrastructure 🎯
 **Goal:** Implement structured logging and comprehensive error handling for production debugging
 
