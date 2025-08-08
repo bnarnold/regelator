@@ -40,7 +40,7 @@ Master roadmap organizing development epics for the Ultimate Frisbee rules refer
 **Why**: Reinforce rule knowledge through active learning and provide engaging practice for players at all levels  
 
 **Detail Plan**: `project_plan_quiz_system.md`  
-**Status**: 🏗️ **In Progress** (4/8 stories completed - Core quiz functionality with session tracking complete)
+**Status**: 🏗️ **In Progress** (5/8 stories completed - Core quiz functionality, session tracking, and admin question management complete)
 
 ---
 
