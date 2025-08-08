@@ -1,5 +1,8 @@
 use crate::{
-    models::NewQuizAttempt, quiz_session::QuizSession, repository::RuleRepository, AppError,
+    models::NewQuizAttempt,
+    quiz_session::{clear_quiz_session_cookie, QuizSession},
+    repository::RuleRepository,
+    AppError,
 };
 use axum::{
     extract::{Form, Path, State},
@@ -8,7 +11,6 @@ use axum::{
 use axum_extra::extract::CookieJar;
 use minijinja::Environment;
 use rand::seq::IndexedRandom;
-use regelator::quiz_session::clear_quiz_session_cookie;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{instrument, Span};

@@ -31,6 +31,19 @@ use repository::RuleRepository;
 
 type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 
+/// Round float to 1 decimal place for display  
+fn round1_filter(value: Value) -> Result<String, minijinja::Error> {
+    // Use try_into to convert to f64
+    let f: f64 = value.try_into().map_err(|_| {
+        minijinja::Error::new(
+            minijinja::ErrorKind::InvalidOperation,
+            "round1 filter requires a number",
+        )
+    })?;
+
+    Ok(format!("{f:.1}"))
+}
+
 /// Convert markdown text to safe HTML with custom link rewriting
 fn markdown_filter(
     markdown: &Value,
@@ -128,6 +141,7 @@ impl AppState {
 
         // Register custom filters
         env.add_filter("markdown", markdown_filter);
+        env.add_filter("round1", round1_filter);
 
         let manager = ConnectionManager::<SqliteConnection>::new(&config.database.url);
         let pool = Pool::builder().build(manager)?;
@@ -175,6 +189,9 @@ fn init_tracing(config: &LoggingConfig) -> color_eyre::Result<()> {
         .from_env()
         .context("Set up env filter")?;
 
+    // Create ErrorLayer for better error tracing
+    let error_layer = tracing_error::ErrorLayer::default();
+
     match config.format.as_str() {
         "tree" => {
             let tree = tracing_tree::HierarchicalLayer::new(2)
@@ -182,7 +199,11 @@ fn init_tracing(config: &LoggingConfig) -> color_eyre::Result<()> {
                 .with_ansi(config.enable_colors)
                 .with_bracketed_fields(true);
 
-            Registry::default().with(env_filter).with(tree).init();
+            Registry::default()
+                .with(env_filter)
+                .with(error_layer)
+                .with(tree)
+                .init();
         }
         "json" => {
             let json_layer = tracing_subscriber::fmt::layer()
@@ -191,7 +212,11 @@ fn init_tracing(config: &LoggingConfig) -> color_eyre::Result<()> {
                 .with_span_list(true)
                 .with_timer(tracing_subscriber::fmt::time::SystemTime);
 
-            Registry::default().with(env_filter).with(json_layer).init();
+            Registry::default()
+                .with(env_filter)
+                .with(error_layer)
+                .with(json_layer)
+                .init();
         }
         _ => {
             // Default to compact format
@@ -200,7 +225,11 @@ fn init_tracing(config: &LoggingConfig) -> color_eyre::Result<()> {
                 .with_ansi(config.enable_colors)
                 .with_timer(tracing_subscriber::fmt::time::SystemTime);
 
-            Registry::default().with(env_filter).with(fmt_layer).init();
+            Registry::default()
+                .with(env_filter)
+                .with(error_layer)
+                .with(fmt_layer)
+                .init();
         }
     }
 
@@ -281,6 +310,8 @@ async fn main() {
             post(handlers::admin_change_password_submit),
         )
         .route("/admin/logout", get(handlers::admin_logout))
+        // Admin statistics routes
+        .route("/admin/stats", get(handlers::admin::admin_stats_dashboard))
         // Admin question management routes
         .route("/admin/questions", get(handlers::admin::questions_list))
         .route(

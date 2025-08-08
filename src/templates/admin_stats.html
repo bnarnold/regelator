@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz Statistics - Admin{% endblock %}
+
+{% block content %}
+<main class="container">
+    <header>
+        <h1>Quiz Statistics Dashboard</h1>
+        <nav>
+            <ul>
+                <li><a href="/admin/dashboard" role="button" class="outline">Back to Admin</a></li>
+                <li><a href="/admin/logout" role="button" class="secondary">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Date Filter Controls -->
+    <section>
+        <h2>Filter Data</h2>
+        <form method="GET" action="/admin/stats">
+            <div class="grid">
+                <div>
+                    <label for="filter">Time Period:</label>
+                    <select id="filter" name="filter" onchange="toggleCustomDates()">
+                        <option value="all" {% if current_filter_value == "all" %}selected{% endif %}>All Time</option>
+                        <option value="7days" {% if current_filter_value == "7days" %}selected{% endif %}>Last 7 Days</option>
+                        <option value="30days" {% if current_filter_value == "30days" %}selected{% endif %}>Last 30 Days</option>
+                        <option value="custom" {% if current_filter_value == "custom" %}selected{% endif %}>Custom Range</option>
+                    </select>
+                </div>
+                <div id="custom-dates" style="display: {% if current_filter_value == 'custom' %}block{% else %}none{% endif %};">
+                    <label for="start_date">Start Date:</label>
+                    <input type="date" id="start_date" name="start_date" value="{{ current_start_date }}">
+                    <label for="end_date">End Date:</label>
+                    <input type="date" id="end_date" name="end_date" value="{{ current_end_date }}">
+                </div>
+                <div>
+                    <button type="submit" class="primary">Apply Filter</button>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <!-- Aggregate Statistics Cards -->
+    <section>
+        <h2>Overview - {{ current_filter }}</h2>
+        <div class="grid">
+            <article>
+                <header><h3>Total Questions</h3></header>
+                <p><strong>{{ aggregate_stats.total_questions }}</strong> questions in database</p>
+            </article>
+            
+            <article>
+                <header><h3>Total Attempts</h3></header>
+                <p><strong>{{ aggregate_stats.total_attempts }}</strong> quiz attempts</p>
+            </article>
+            
+            <article>
+                <header><h3>Unique Sessions</h3></header>
+                <p><strong>{{ aggregate_stats.total_sessions }}</strong> quiz sessions</p>
+            </article>
+            
+            <article>
+                <header><h3>Overall Success Rate</h3></header>
+                <p><strong>{{ aggregate_stats.overall_success_rate|round1 }}%</strong> questions answered correctly</p>
+            </article>
+        </div>
+    </section>
+
+    <!-- Question Performance Table -->
+    <section>
+        <header>
+            <h2>Question Performance</h2>
+            <p>Showing questions sorted by success rate (struggling questions first)</p>
+        </header>
+        
+        {% if question_stats %}
+        <figure>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Question</th>
+                        <th>Difficulty</th>
+                        <th>Total Attempts</th>
+                        <th>Correct Attempts</th>
+                        <th>Success Rate</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in question_stats %}
+                    <tr>
+                        <td>{{ stat.question_text }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if stat.difficulty_level == 'beginner' %}success
+                                {% elif stat.difficulty_level == 'intermediate' %}warning  
+                                {% else %}danger{% endif %}">
+                                {{ stat.difficulty_level|title }}
+                            </span>
+                        </td>
+                        <td>{{ stat.total_attempts }}</td>
+                        <td>{{ stat.correct_attempts }}</td>
+                        <td>
+                            <strong class="{% if stat.success_rate < 50 %}text-danger{% elif stat.success_rate < 75 %}text-warning{% else %}text-success{% endif %}">
+                                {{ stat.success_rate|round1 }}%
+                            </strong>
+                        </td>
+                        <td>{{ stat.created_at }}</td>
+                        <td>
+                            <a href="/admin/questions/{{ stat.question_id }}/edit" class="outline" role="button" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">Edit</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </figure>
+
+        
+        {% else %}
+        <p>No quiz attempts found for the selected time period.</p>
+        {% endif %}
+    </section>
+</main>
+
+<script>
+function toggleCustomDates() {
+    const filterSelect = document.getElementById('filter');
+    const customDates = document.getElementById('custom-dates');
+    
+    if (filterSelect.value === 'custom') {
+        customDates.style.display = 'block';
+    } else {
+        customDates.style.display = 'none';
+    }
+}
+</script>
+
+<style>
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+}
+
+.badge.success { background-color: #28a745; color: white; }
+.badge.warning { background-color: #ffc107; color: black; }
+.badge.danger { background-color: #dc3545; color: white; }
+
+.text-success { color: #28a745; }
+.text-warning { color: #ffc107; }
+.text-danger { color: #dc3545; }
+
+</style>
+{% endblock %}

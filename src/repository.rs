@@ -1025,4 +1025,174 @@ impl RuleRepository {
             Ok(())
         })
     }
+
+    // Analytics methods for admin dashboard
+
+    /// Get question statistics with optional date filtering
+    pub fn get_question_statistics(
+        &self,
+        start_date: Option<&str>,
+        end_date: Option<&str>,
+        limit: Option<usize>,
+        offset: Option<usize>,
+    ) -> Result<Vec<crate::models::QuestionStatistics>> {
+        use crate::schema::quiz_attempts::dsl as qa_dsl;
+        use crate::schema::quiz_questions::dsl as qq_dsl;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        // Get all questions first
+        let questions = qq_dsl::quiz_questions
+            .select(QuizQuestion::as_select())
+            .load(&mut conn)
+            .wrap_err("Failed to load questions")?;
+
+        // Build attempts query with optional date filtering
+        let mut attempts_query = qa_dsl::quiz_attempts.into_boxed();
+
+        if let Some(start) = start_date {
+            attempts_query = attempts_query.filter(qa_dsl::created_at.ge(start));
+        }
+        if let Some(end) = end_date {
+            attempts_query = attempts_query.filter(qa_dsl::created_at.le(end));
+        }
+
+        // Get filtered attempts
+        let attempts = attempts_query
+            .select(QuizAttempt::as_select())
+            .load(&mut conn)
+            .wrap_err("Failed to load attempts")?;
+
+        // Group attempts by question ID
+        let mut attempts_by_question: std::collections::HashMap<String, Vec<QuizAttempt>> =
+            std::collections::HashMap::new();
+
+        for attempt in attempts {
+            attempts_by_question
+                .entry(attempt.question_id.clone())
+                .or_default()
+                .push(attempt);
+        }
+
+        // Create statistics for each question
+        let mut stats: Vec<crate::models::QuestionStatistics> = questions
+            .into_iter()
+            .map(|question| {
+                let question_attempts = attempts_by_question
+                    .get(&question.id)
+                    .map(|v| v.as_slice())
+                    .unwrap_or(&[]);
+
+                let total_attempts = question_attempts.len();
+                let correct_attempts = question_attempts
+                    .iter()
+                    .filter(|a| a.is_correct == Some(true))
+                    .count();
+                let success_rate = if total_attempts > 0 {
+                    (correct_attempts as f64 / total_attempts as f64) * 100.0
+                } else {
+                    0.0
+                };
+
+                crate::models::QuestionStatistics {
+                    question_id: question.id,
+                    question_text: question.question_text,
+                    difficulty_level: question.difficulty_level,
+                    rule_reference: None, // TODO: Add rule reference lookup
+                    total_attempts,
+                    correct_attempts,
+                    success_rate,
+                    created_at: question.created_at,
+                }
+            })
+            .collect();
+
+        // Sort by success rate (ascending - show struggling questions first)
+        stats.sort_by(|a, b| a.success_rate.partial_cmp(&b.success_rate).unwrap());
+
+        // Apply pagination
+        if let Some(offset_val) = offset {
+            if offset_val < stats.len() {
+                stats.drain(0..offset_val);
+            } else {
+                stats.clear();
+            }
+        }
+
+        if let Some(limit_val) = limit {
+            stats.truncate(limit_val);
+        }
+
+        Ok(stats)
+    }
+
+    /// Get aggregate statistics across all quiz activity
+    pub fn get_aggregate_quiz_statistics(
+        &self,
+        start_date: Option<&str>,
+        end_date: Option<&str>,
+    ) -> Result<crate::models::AggregateStatistics> {
+        use crate::schema::quiz_attempts::dsl as qa_dsl;
+        use crate::schema::quiz_questions::dsl as qq_dsl;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        // Get total question count
+        let total_questions: i64 = qq_dsl::quiz_questions
+            .count()
+            .get_result(&mut conn)
+            .wrap_err("Failed to count questions")?;
+
+        // Build attempts query with optional date filtering
+        let mut attempts_query = qa_dsl::quiz_attempts.into_boxed();
+
+        if let Some(start) = start_date {
+            attempts_query = attempts_query.filter(qa_dsl::created_at.ge(start));
+        }
+        if let Some(end) = end_date {
+            attempts_query = attempts_query.filter(qa_dsl::created_at.le(end));
+        }
+
+        // Get attempt statistics
+        let attempts = attempts_query
+            .select(QuizAttempt::as_select())
+            .load(&mut conn)
+            .wrap_err("Failed to load attempts")?;
+
+        let total_attempts = attempts.len();
+        let correct_attempts = attempts
+            .iter()
+            .filter(|a| a.is_correct == Some(true))
+            .count();
+
+        let overall_success_rate = if total_attempts > 0 {
+            (correct_attempts as f64 / total_attempts as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        // Get unique session count
+        let unique_sessions: std::collections::HashSet<String> =
+            attempts.iter().map(|a| a.session_id.clone()).collect();
+        let total_sessions = unique_sessions.len();
+
+        // Find most attempted difficulty (simplified - would need question join for real implementation)
+        let most_attempted_difficulty = "intermediate".to_string(); // TODO: Implement proper difficulty analysis
+
+        Ok(crate::models::AggregateStatistics {
+            total_questions: total_questions as usize,
+            total_attempts,
+            total_sessions,
+            overall_success_rate,
+            most_attempted_difficulty,
+            date_range_start: start_date.map(|s| s.to_string()),
+            date_range_end: end_date.map(|s| s.to_string()),
+        })
+    }
 }

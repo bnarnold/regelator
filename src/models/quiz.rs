@@ -317,3 +317,29 @@ pub struct SessionStatistics {
     pub accuracy_percentage: u32,
     pub current_streak: usize,
 }
+
+/// Analytics models for admin dashboard
+/// Question performance statistics for admin analytics
+#[derive(Debug, Clone, Serialize)]
+pub struct QuestionStatistics {
+    pub question_id: String,
+    pub question_text: String,
+    pub difficulty_level: String,
+    pub rule_reference: Option<String>,
+    pub total_attempts: usize,
+    pub correct_attempts: usize,
+    pub success_rate: f64,
+    pub created_at: String,
+}
+
+/// Aggregate statistics across all quiz activity
+#[derive(Debug, Clone, Serialize)]
+pub struct AggregateStatistics {
+    pub total_questions: usize,
+    pub total_attempts: usize,
+    pub total_sessions: usize,
+    pub overall_success_rate: f64,
+    pub most_attempted_difficulty: String,
+    pub date_range_start: Option<String>,
+    pub date_range_end: Option<String>,
+}

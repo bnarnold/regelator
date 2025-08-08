@@ -7,6 +7,7 @@ use axum::{
     response::{Html, Redirect},
 };
 use axum_extra::extract::{CookieJar, Form, Query};
+use chrono::{Duration, Utc};
 use minijinja::Environment;
 use regelator::auth::{clear_admin_cookie, create_admin_cookie, AdminToken};
 use regelator::config::Config;
@@ -527,4 +528,88 @@ pub async fn update_question(
     }
 
     Ok(Redirect::to("/admin/questions"))
+}
+
+// Analytics handlers
+
+#[derive(Serialize)]
+pub struct AdminStatsContext {
+    pub aggregate_stats: crate::models::quiz::AggregateStatistics,
+    pub question_stats: Vec<crate::models::quiz::QuestionStatistics>,
+    pub current_filter: String,
+    pub current_start_date: String,
+    pub current_end_date: String,
+    pub current_filter_value: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct StatsQueryParams {
+    pub filter: Option<String>,
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+}
+
+/// Show admin statistics dashboard
+#[instrument(skip(templates, repository, _admin), fields(admin_username = %_admin.username()))]
+pub async fn admin_stats_dashboard(
+    State(templates): State<Arc<Environment<'static>>>,
+    State(repository): State<RuleRepository>,
+    _admin: AdminToken,
+    Query(params): Query<StatsQueryParams>,
+) -> Result<Html<String>, AppError> {
+    // Determine date range based on filter
+    let (start_date, end_date, filter_name, filter_value) = match params.filter.as_deref() {
+        Some("7days") => {
+            let end = Utc::now();
+            let start = end - Duration::days(7);
+            (
+                Some(start.format("%Y-%m-%d").to_string()),
+                Some(end.format("%Y-%m-%d").to_string()),
+                "Last 7 Days".to_string(),
+                "7days".to_string(),
+            )
+        }
+        Some("30days") => {
+            let end = Utc::now();
+            let start = end - Duration::days(30);
+            (
+                Some(start.format("%Y-%m-%d").to_string()),
+                Some(end.format("%Y-%m-%d").to_string()),
+                "Last 30 Days".to_string(),
+                "30days".to_string(),
+            )
+        }
+        Some("custom") => (
+            params.start_date.clone(),
+            params.end_date.clone(),
+            "Custom Range".to_string(),
+            "custom".to_string(),
+        ),
+        _ => (None, None, "All Time".to_string(), "all".to_string()),
+    };
+
+    // Get statistics
+    let aggregate_stats =
+        repository.get_aggregate_quiz_statistics(start_date.as_deref(), end_date.as_deref())?;
+
+    let question_stats = repository.get_question_statistics(
+        start_date.as_deref(),
+        end_date.as_deref(),
+        None, // No limit
+        None, // No offset
+    )?;
+
+    let context = AdminStatsContext {
+        aggregate_stats,
+        question_stats,
+        current_filter: filter_name,
+        current_start_date: params.start_date.unwrap_or_default(),
+        current_end_date: params.end_date.unwrap_or_default(),
+        current_filter_value: filter_value,
+    };
+
+    let template = templates.get_template("admin_stats.html")?;
+    let rendered = template.render(&context)?;
+
+    Ok(Html(rendered))
 }

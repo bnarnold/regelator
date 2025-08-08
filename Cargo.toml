@@ -33,3 +33,4 @@ tower-http = { version = "0.6.6", features = [
   "set-header",
 ] }
 uuid = { version = "1.17.0", features = ["v7"] }
+tracing-error = "0.2.1"

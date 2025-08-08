@@ -8,6 +8,7 @@ const QUIZ_SESSION_COOKIE_NAME: &str = "quiz_session";
 /// Simple wrapper around session ID for consistent access
 #[derive(Debug)]
 pub struct QuizSession {
+    /// The unique session identifier
     pub session_id: String,
 }
 

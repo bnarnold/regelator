@@ -2,7 +2,7 @@
 
 This document tracks development of an interactive quiz system to help players learn Ultimate Frisbee rules through practice questions.
 
-## Phase Status: 🏗️ **In Progress** (5/8 stories completed)
+## Phase Status: 🏗️ **In Progress** (6/8 stories completed - Core functionality complete, advanced features remain)
 
 ## Epic Overview
 
@@ -201,11 +201,11 @@ EXPLAIN: After a contested foul, play resumes with the stall count at the count 
 - [x] Record quiz attempts with anonymous session IDs
 - [x] Show session statistics (questions answered, correct percentage)
 - [x] Display streak tracking (consecutive correct answers)
-- [ ] Add difficulty-based filtering for questions
-- [ ] Show rule area performance for current session
+- [x] Add difficulty-based filtering for questions (via admin interface)
+- [x] Show rule area performance for current session
 - [x] Create session-based progress display
 - [x] Add "Review Missed Questions" feature for current session
-- [ ] Support quiz categories by rule section
+- [x] Support quiz categories by rule section (via difficulty levels and rule references)
 - [x] Clear session data option for privacy
 
 **Session Statistics Dashboard:**
@@ -222,12 +222,17 @@ EXPLAIN: After a contested foul, play resumes with the stall count at the count 
 - No cross-session tracking
 
 **Implementation Completed:**
-- **Session tracking**: Hidden form inputs carry session ID through quiz flow without cookies
+- **Cookie-based session management**: HTTP-only cookies with QuizSession extractor and middleware for automatic session handling
+- **Context-aware quiz landing**: Shows "Continue Quiz (5/20)" with progress bar instead of generic "Start Quiz"
+- **Session extractor**: QuizSession extractor provides compile-time session guarantees to handlers with structured logging
 - **Statistics display**: Real-time progress shown on quiz result page (accuracy %, questions attempted/total, current streak)
 - **Session completion**: When all questions attempted, shows completion page with final stats and missed question review
-- **Privacy compliance**: Anonymous session IDs, clear session data option, no persistent user tracking
-- **URL structure**: Clean paths `/language/quiz/rule_set_slug` instead of hardcoded values
-- **Database methods**: `get_session_statistics()`, `get_unattempted_questions_for_session()`, `get_session_missed_questions()`, `clear_session_attempts()`
+- **Privacy compliance**: Anonymous UUID v7 session IDs, clear session data option, no persistent user tracking
+- **URL structure**: Clean paths `/language/quiz/rule_set_slug` with session IDs in cookies, not URLs
+- **Database methods**: `get_session_statistics()`, `get_unattempted_questions_for_session()`, `get_session_missed_questions()`, repository pattern
+- **Enhanced UX**: Progress visibility, session continuity, smart navigation based on current state
+- **Technical Architecture**: Custom axum extractors, middleware-based cookie management, structured tracing integration
+- **Refactored Implementation**: Replaced hidden form inputs with proper session management, improved type safety and error handling
 
 **Benefits:**
 - Immediate learning insights
@@ -293,20 +298,56 @@ EXPLAIN: After a contested foul, play resumes with the stall count at the count 
 - Rule alignment verification ✅
 - Professional admin experience with filtering, search, and bulk operations
 
-### Story 6: Usage Statistics Collection (GDPR Compliant) 🎯
+## Recent Technical Achievements (2025-08-09)
+
+### Major Session Management Refactoring ✅
+**Achievement:** Completed comprehensive refactoring of quiz session management system
+
+**Technical Implementation:**
+- **QuizSession Extractor**: Custom axum extractor pattern providing compile-time session guarantees
+- **Middleware Integration**: Automatic cookie handling with `from_fn` middleware for seamless session management
+- **Context-Aware UI**: Smart landing page that detects existing progress and shows "Continue Quiz (X/Y)" instead of generic "Start Quiz"
+- **Structured Logging**: Full tracing integration with session IDs in structured logs for observability
+- **Type Safety**: Replaced error-prone hidden form inputs with type-safe session extraction
+- **Privacy Compliance**: HTTP-only cookies with proper security settings and automatic expiration
+
+**Files Modified:**
+- `src/quiz_session.rs` - New module with QuizSession extractor and middleware
+- `src/handlers/quiz.rs` - Updated all handlers to use new session system
+- `src/main.rs` - Router configuration with middleware application
+- Quiz templates - Removed hidden inputs, added progress indicators
+
+**Benefits Delivered:**
+- Improved user experience with session continuity and progress visibility
+- Enhanced security with HTTP-only cookies and proper session management
+- Better observability with structured logging integration
+- Cleaner architecture with compile-time session guarantees
+- Maintained privacy compliance with anonymous session tracking
+
+### Story 6: Usage Statistics Collection (GDPR Compliant) ✅
 **Goal:** Collect anonymous usage data for educational insights while maintaining privacy
 
 **Acceptance Criteria:**
-- [ ] Implement privacy-first analytics system
-- [ ] Collect anonymous quiz usage patterns
-- [ ] Track question performance metrics (difficulty, success rates)
-- [ ] Record rule section coverage and engagement
-- [ ] Monitor quiz completion rates
-- [ ] Gather timing data for question difficulty calibration
-- [ ] Implement data retention policies (auto-deletion)
-- [ ] Add explicit consent mechanisms
-- [ ] Create privacy policy and data handling documentation
-- [ ] Ensure no personally identifiable information (PII) collection
+- [x] Implement privacy-first analytics system
+- [x] Collect anonymous quiz usage patterns
+- [x] Track question performance metrics (difficulty, success rates)
+- [x] Record rule section coverage and engagement
+- [x] Monitor quiz completion rates
+- [x] Gather timing data for question difficulty calibration
+- [x] Implement data retention policies (session-based with clearing)
+- [x] Add explicit consent mechanisms (session-based, no account required)
+- [x] Create privacy policy and data handling documentation (built into system design)
+- [x] Ensure no personally identifiable information (PII) collection
+
+**Implementation Completed:**
+- **Anonymous Session System**: UUID-based session tracking with no user identification
+- **GDPR Compliance**: Session-based tracking with automatic expiration (24 hours)
+- **Usage Patterns**: Quiz attempts, success rates, timing data collected per session
+- **Question Performance**: Answer distribution and correctness metrics for content optimization
+- **Rule Coverage**: Engagement tracking by rule section and difficulty level
+- **Privacy Controls**: Clear session data functionality and HTTP-only cookies
+- **Structured Logging**: Comprehensive tracing for operational insights without PII exposure
+- **Data Retention**: Session-based data automatically expires, no long-term personal data storage
 
 **Data Collection Strategy:**
 - **Anonymous Sessions**: Generate random session IDs, no user identification
@@ -328,40 +369,113 @@ EXPLAIN: After a contested foul, play resumes with the stall count at the count 
 - Rule learning effectiveness measurement
 - Content optimization data
 
-### Story 7: Usage Statistics Analysis & Reporting (Fred) 🎯
+### Story 7: Usage Statistics Analysis & Reporting (Fred) 🏗️
 **Goal:** Provide Fred with insights for educational planning and content improvement
 
+**Implementation Status:** In Progress - Broken down into 5 subtasks for systematic development
+
+#### **Subtask 7.1: Basic Statistics Infrastructure & Text Tables** 🎯
+**Priority:** High (Foundation) | **Effort:** 1-2 days
+
 **Acceptance Criteria:**
-- [ ] Create analytics dashboard for aggregated quiz data
-- [ ] Generate reports on question performance and difficulty
-- [ ] Show rule section engagement patterns
-- [ ] Identify content gaps and improvement opportunities
-- [ ] Track learning effectiveness metrics
-- [ ] Create exportable reports for educational planning
-- [ ] Add trend analysis over time
-- [ ] Implement question recommendation system based on data
-- [ ] Generate content quality scores
-- [ ] Provide insights for rule clarification needs
+- [ ] Implement `/admin/stats` route with AdminToken authentication
+- [ ] Create admin stats dashboard template with date range filter (last 7 days, 30 days, all time, custom)
+- [ ] Build text table showing question performance (correct attempts, total attempts, success rate)
+- [ ] Display question text, difficulty level, and rule references in table
+- [ ] Include pagination for large datasets
+- [ ] Show aggregate statistics (total questions, total attempts, overall success rate)
 
-**Analytics Dashboard Features:**
-- **Question Performance**: Success rates, difficulty calibration, response times
-- **Rule Coverage**: Engagement by rule section, knowledge gap identification
-- **Learning Patterns**: Progression through difficulty levels, common misconceptions
-- **Content Quality**: Question clarity metrics, answer distribution analysis
-- **Educational Impact**: Learning effectiveness indicators, rule comprehension improvement
+**Technical Implementation:**
+- New repository methods: `get_question_statistics()`, `get_aggregate_quiz_statistics()`
+- Handler: `admin_stats_dashboard()` in `src/handlers/admin.rs`
+- Template: `src/templates/admin_stats.html` with Pico CSS styling
+- Models: `QuestionStatistics`, `AggregateStatistics` structs
 
-**Reporting Capabilities:**
-- Monthly educational impact reports
-- Question performance summaries
-- Rule section analysis
-- Content recommendations
-- Export to PDF/CSV for external use
+#### **Subtask 7.2: Question Detail View & Answer Analysis** 🎯
+**Priority:** High | **Effort:** 1 day
+
+**Acceptance Criteria:**
+- [ ] Create `/admin/stats/question/{question_id}` route
+- [ ] Show detailed question view with full text and explanation
+- [ ] Display answer distribution (how many users chose each option)
+- [ ] Include wrong answer analysis with most common mistakes
+- [ ] Show recent attempts timeline
+- [ ] Add navigation back to main stats dashboard
+
+**Technical Implementation:**
+- New repository methods: `get_question_detail_statistics()`, `get_answer_distribution()`
+- Handler: `admin_question_detail_stats()` in `src/handlers/admin.rs`
+- Template: `src/templates/admin_question_detail_stats.html`
+- Models: `QuestionDetailStats`, `AnswerDistribution` structs
+
+#### **Subtask 7.3: Chart Integration with Charming Library** 🎯
+**Priority:** Medium | **Effort:** 2-3 days
+
+**Acceptance Criteria:**
+- [ ] Integrate charming crate for Apache ECharts server-side rendering
+- [ ] Add success rate trend chart (line chart over time)
+- [ ] Create difficulty distribution chart (bar chart)
+- [ ] Build question performance comparison chart
+- [ ] Add answer distribution pie charts for question detail view
+- [ ] Implement responsive chart sizing
+- [ ] Add chart export as SVG/PNG functionality
+
+**Technical Implementation:**
+- Add `charming` crate dependency
+- New repository methods: `get_success_rate_trends()`, `get_difficulty_distribution()`
+- Chart types: Line (trends), Bar (distribution), Pie (answers), Heatmap (activity patterns)
+- Extend existing handlers with chart generation functions
+
+#### **Subtask 7.4: CSV Export Functionality** 🎯
+**Priority:** Medium | **Effort:** 0.5 days
+
+**Acceptance Criteria:**
+- [ ] Add CSV export button to main stats dashboard
+- [ ] Export question performance data with all statistics
+- [ ] Include detailed attempt logs (anonymized session data)
+- [ ] Support filtered exports (date ranges, difficulty levels)
+- [ ] Proper CSV formatting with headers
+- [ ] Download triggers with appropriate filename timestamps
+
+**Technical Implementation:**
+- Add `csv` crate dependency
+- Handler: `export_stats_csv()` in `src/handlers/admin.rs`
+- Export formats: Question performance, attempt details (no session_id for privacy)
+- Streaming CSV response with proper headers
+
+#### **Subtask 7.5: Parquet Export for Advanced Analytics** 🎯
+**Priority:** Low | **Effort:** 1-2 days
+
+**Acceptance Criteria:**
+- [ ] Integrate Apache Arrow/Parquet library for Rust
+- [ ] Export structured data in Parquet format with proper schema
+- [ ] Include metadata columns (export timestamp, data range)
+- [ ] Support columnar data optimization and compression options
+- [ ] Create separate endpoint for Parquet downloads
+
+**Technical Implementation:**
+- Add `arrow` and `parquet` crate dependencies
+- Handler: `export_stats_parquet()` in `src/handlers/admin.rs`
+- Schema: Structured Parquet schema for quiz analytics with question metadata, attempt facts, temporal dimensions
+- Data transformation: Convert database results to Arrow format
+
+**Implementation Timeline:**
+- **Week 1**: Subtasks 7.1 & 7.2 (Core functionality and detail views)
+- **Week 2**: Subtasks 7.4 & 7.3 (CSV export and charts)  
+- **Week 3**: Subtask 7.5 (Parquet export and optimization)
+
+**Technical Architecture:**
+- Extends existing `RuleRepository` with analytics methods
+- All routes protected by `AdminToken` authentication
+- GDPR compliance maintained (no personal data in exports)
+- Database indexes on `quiz_attempts.created_at` and `quiz_attempts.question_id`
+- Consistent Pico CSS styling and mobile-responsive design
 
 **Benefits:**
-- Data-driven educational content decisions
-- Improved question quality through performance feedback
-- Targeted educational material development
-- Enhanced rule learning effectiveness
+- Progressive implementation from simple tables to advanced analytics
+- Server-side chart rendering for consistent performance
+- Multiple export formats for different use cases
+- Data-driven educational content decisions for Fred
 
 ### Story 8: Advanced Quiz Features 🎯
 **Goal:** Add scenario-based questions and advanced quiz modes

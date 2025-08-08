@@ -1,0 +1,8 @@
+{
+  "hooks": {
+    "post-edit": {
+      "command": "cargo fmt",
+      "description": "Automatically format Rust code after editing files"
+    }
+  }
+}
