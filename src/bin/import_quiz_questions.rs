@@ -1,9 +1,10 @@
+use color_eyre::{eyre::WrapErr, Result};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
-use eyre::{Result, WrapErr};
 use regex::Regex;
 use std::collections::HashMap;
 use std::io::{self, BufRead};
+use tracing::info;
 
 use regelator::config::{Config, ImportConfig};
 use regelator::models::*;
@@ -25,6 +26,9 @@ struct QuizAnswerImport {
 }
 
 fn main() -> Result<()> {
+    color_eyre::install()?;
+    tracing_subscriber::fmt::init();
+
     // Configuration constants
     // Load configuration
     let config = Config::load().wrap_err("Failed to load configuration")?;
@@ -46,17 +50,19 @@ fn main() -> Result<()> {
     let lines: Vec<String> = stdin.lock().lines().collect::<Result<_, _>>()?;
 
     let questions = parse_quiz_questions(&lines)?;
-    println!("Parsed {} quiz questions", questions.len());
+    info!("Parsed {} quiz questions", questions.len());
 
     let rule_sets = repository.get_rule_sets()?;
     let rule_set = rule_sets
         .iter()
         .find(|rs| rs.slug == *rule_set_slug)
-        .ok_or_else(|| eyre::eyre!("Rule set '{}' not found", rule_set_slug))?;
+        .ok_or_else(|| color_eyre::eyre::eyre!("Rule set '{}' not found", rule_set_slug))?;
 
     let version = repository
         .get_version_by_name(&rule_set_slug, &version_name)?
-        .ok_or_else(|| eyre::eyre!("No current version found for rule set '{}'", rule_set_slug))?;
+        .ok_or_else(|| {
+            color_eyre::eyre::eyre!("No current version found for rule set '{}'", rule_set_slug)
+        })?;
 
     // Get all rules to build number-to-slug and number-to-id mappings
     let all_rules_with_content =
@@ -74,7 +80,7 @@ fn main() -> Result<()> {
 
     // Process and import each question
     for question_import in questions {
-        println!(
+        info!(
             "Importing question: {}",
             &question_import.question_text[..50.min(question_import.question_text.len())]
         );
@@ -114,10 +120,10 @@ fn main() -> Result<()> {
 
         // Import the complete question
         let created_question = repository.create_quiz_question_complete(&question_data)?;
-        println!("Created question with ID: {}", created_question.id);
+        info!("Created question with ID: {}", created_question.id);
     }
 
-    println!("Import completed successfully!");
+    info!("Import completed successfully!");
     Ok(())
 }
 
@@ -205,19 +211,19 @@ fn parse_question_with_difficulty(line: &str) -> Result<(String, &str)> {
         // Validate difficulty level
         match difficulty.as_str() {
             "beginner" | "intermediate" | "advanced" => Ok((difficulty, question_text)),
-            _ => Err(eyre::eyre!(
+            _ => Err(color_eyre::eyre::eyre!(
                 "Invalid difficulty level: {}. Must be beginner, intermediate, or advanced",
                 difficulty
             )),
         }
     } else {
-        Err(eyre::eyre!("Question must start with difficulty level in brackets: [BEGINNER], [INTERMEDIATE], or [ADVANCED]"))
+        Err(color_eyre::eyre::eyre!("Question must start with difficulty level in brackets: [BEGINNER], [INTERMEDIATE], or [ADVANCED]"))
     }
 }
 
 /// Parse answer line, checking for [CORRECT] flag
 fn parse_answer(line: &str) -> (bool, &str) {
-    if let Some(correct_answer) = line.strip_suffix("[CORRECT]") {
+    if let Some(correct_answer) = line.strip_suffix(" [CORRECT]") {
         (true, correct_answer)
     } else {
         (false, line)

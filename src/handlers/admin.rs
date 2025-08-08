@@ -13,6 +13,7 @@ use regelator::config::Config;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::sync::Arc;
+use tracing::{instrument, Span};
 
 // Admin authentication structures
 #[derive(Deserialize)]
@@ -45,6 +46,7 @@ struct ChangePasswordContext {
 }
 
 /// Show admin login form
+#[instrument(skip(templates))]
 pub async fn admin_login_form(
     State(templates): State<Arc<Environment<'static>>>,
 ) -> Result<Html<String>, AppError> {
@@ -55,6 +57,7 @@ pub async fn admin_login_form(
 }
 
 /// Process admin login
+#[instrument(skip(templates, repository, config, jar, form_data), fields(username))]
 pub async fn admin_login_submit(
     State(templates): State<Arc<Environment<'static>>>,
     State(repository): State<RuleRepository>,
@@ -62,6 +65,9 @@ pub async fn admin_login_submit(
     jar: CookieJar,
     Form(form_data): Form<AdminLoginForm>,
 ) -> Result<(CookieJar, Html<String>), AppError> {
+    // Record username in span (but not password for security)
+    Span::current().record("username", &form_data.username);
+
     // Find admin by username
     let admin = match repository.find_admin_by_username(&form_data.username)? {
         Some(admin) => admin,
@@ -78,8 +84,12 @@ pub async fn admin_login_submit(
 
     // Verify password using Argon2
     let argon2 = Argon2::default();
-    let parsed_hash = PasswordHash::new(&admin.password_hash)
-        .map_err(|e| AppError(eyre::eyre!("Failed to parse password hash: {}", e)))?;
+    let parsed_hash = PasswordHash::new(&admin.password_hash).map_err(|e| {
+        AppError(color_eyre::eyre::eyre!(
+            "Failed to parse password hash: {}",
+            e
+        ))
+    })?;
 
     if argon2
         .verify_password(form_data.password.as_bytes(), &parsed_hash)
@@ -94,7 +104,12 @@ pub async fn admin_login_submit(
             &config.security.jwt_secret,
             config.session_duration(),
         )
-        .map_err(|e| AppError(eyre::eyre!("Failed to create admin cookie: {}", e)))?;
+        .map_err(|e| {
+            AppError(color_eyre::eyre::eyre!(
+                "Failed to create admin cookie: {}",
+                e
+            ))
+        })?;
 
         // Show admin dashboard
         let context = AdminDashboardContext {
@@ -115,6 +130,7 @@ pub async fn admin_login_submit(
 }
 
 /// Show admin dashboard (protected route)
+#[instrument(skip(templates, admin), fields(admin_username = %admin.username()))]
 pub async fn admin_dashboard(
     State(templates): State<Arc<Environment<'static>>>,
     admin: AdminToken,
@@ -128,12 +144,14 @@ pub async fn admin_dashboard(
 }
 
 /// Admin logout (clears cookie and redirects to login)
+#[instrument(skip(jar))]
 pub async fn admin_logout(jar: CookieJar) -> Result<(CookieJar, Redirect), AppError> {
     let clear_cookie = clear_admin_cookie();
     Ok((jar.add(clear_cookie), Redirect::to("/admin/login")))
 }
 
 /// Show password change form (protected route)
+#[instrument(skip(templates, _admin), fields(admin_username = %_admin.username()))]
 pub async fn admin_change_password_form(
     State(templates): State<Arc<Environment<'static>>>,
     _admin: AdminToken,
@@ -148,6 +166,7 @@ pub async fn admin_change_password_form(
 }
 
 /// Process password change (protected route)
+#[instrument(skip(templates, repository, admin, form_data), fields(admin_username = %admin.username()))]
 pub async fn admin_change_password_submit(
     State(templates): State<Arc<Environment<'static>>>,
     State(repository): State<RuleRepository>,
@@ -178,12 +197,16 @@ pub async fn admin_change_password_submit(
     // Get current admin record to verify current password
     let admin_record = repository
         .find_admin_by_username(admin.username())?
-        .ok_or_else(|| AppError(eyre::eyre!("Admin not found")))?;
+        .ok_or_else(|| AppError(color_eyre::eyre::eyre!("Admin not found")))?;
 
     // Verify current password
     let argon2 = Argon2::default();
-    let current_parsed_hash = PasswordHash::new(&admin_record.password_hash)
-        .map_err(|e| AppError(eyre::eyre!("Failed to parse current password hash: {}", e)))?;
+    let current_parsed_hash = PasswordHash::new(&admin_record.password_hash).map_err(|e| {
+        AppError(color_eyre::eyre::eyre!(
+            "Failed to parse current password hash: {}",
+            e
+        ))
+    })?;
 
     if argon2
         .verify_password(form_data.current_password.as_bytes(), &current_parsed_hash)
@@ -202,7 +225,12 @@ pub async fn admin_change_password_submit(
     let salt = SaltString::generate(&mut OsRng);
     let new_password_hash = argon2
         .hash_password(form_data.new_password.as_bytes(), &salt)
-        .map_err(|e| AppError(eyre::eyre!("Failed to hash new password: {}", e)))?
+        .map_err(|e| {
+            AppError(color_eyre::eyre::eyre!(
+                "Failed to hash new password: {}",
+                e
+            ))
+        })?
         .to_string();
 
     // Update password in database (with current hash verification for extra security)
@@ -272,6 +300,7 @@ struct QuestionPreviewContext {
 }
 
 /// Show questions list with filtering
+#[instrument(skip(templates, repository, _admin, filters), fields(admin_username = %_admin.username(), search = ?filters.search, status = ?filters.status, difficulty = ?filters.difficulty))]
 pub async fn questions_list(
     State(templates): State<Arc<Environment<'static>>>,
     State(repository): State<RuleRepository>,
@@ -313,6 +342,7 @@ pub async fn questions_list(
 }
 
 /// Show new question form
+#[instrument(skip(templates, _admin), fields(admin_username = %_admin.username()))]
 pub async fn new_question_form(
     State(templates): State<Arc<Environment<'static>>>,
     _admin: AdminToken,
@@ -329,6 +359,7 @@ pub async fn new_question_form(
 }
 
 /// Create new question
+#[instrument(skip(repository, _admin, form_data), fields(admin_username = %_admin.username(), question_text, difficulty = %form_data.difficulty_level))]
 pub async fn create_question(
     State(repository): State<RuleRepository>,
     _admin: AdminToken,
@@ -401,6 +432,7 @@ pub async fn create_question(
 }
 
 /// Show edit question form
+#[instrument(skip(templates, repository, _admin), fields(admin_username = %_admin.username(), question_id = %question_id))]
 pub async fn edit_question_form(
     State(templates): State<Arc<Environment<'static>>>,
     State(repository): State<RuleRepository>,
@@ -410,7 +442,7 @@ pub async fn edit_question_form(
     // Get question with answers
     let (question, answers) = repository
         .get_question_with_answers(&question_id)?
-        .ok_or_else(|| AppError(eyre::eyre!("Question not found")))?;
+        .ok_or_else(|| AppError(color_eyre::eyre::eyre!("Question not found")))?;
 
     let context = QuestionFormContext {
         question: Some(question),
@@ -424,6 +456,7 @@ pub async fn edit_question_form(
 }
 
 /// Show question preview
+#[instrument(skip(templates, repository, _admin), fields(admin_username = %_admin.username(), question_id = %question_id))]
 pub async fn preview_question(
     State(templates): State<Arc<Environment<'static>>>,
     State(repository): State<RuleRepository>,
@@ -433,7 +466,7 @@ pub async fn preview_question(
     // Get question with answers
     let (question, answers) = repository
         .get_question_with_answers(&question_id)?
-        .ok_or_else(|| AppError(eyre::eyre!("Question not found")))?;
+        .ok_or_else(|| AppError(color_eyre::eyre::eyre!("Question not found")))?;
 
     let context = QuestionPreviewContext { question, answers };
 
@@ -443,6 +476,7 @@ pub async fn preview_question(
 }
 
 /// Update question
+#[instrument(skip(repository, _admin, form_data), fields(admin_username = %_admin.username(), question_id = %question_id, action = ?form_data.action, difficulty = %form_data.difficulty_level))]
 pub async fn update_question(
     State(repository): State<RuleRepository>,
     _admin: AdminToken,

@@ -11,8 +11,9 @@ use minijinja::Environment;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
+use tracing::instrument;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct VersionQuery {
     version: Option<String>,
 }
@@ -64,6 +65,7 @@ struct RuleDetailData {
 }
 
 /// GET /en/rules - List all rule sets
+#[instrument(skip(templates, repo), fields(language = %language))]
 pub async fn list_rule_sets(
     Path(language): Path<String>,
     State(templates): State<Arc<Environment<'static>>>,
@@ -90,6 +92,7 @@ pub async fn list_rule_sets(
 }
 
 /// GET /en/rules/indoor - List rules for a rule set
+#[instrument(skip(templates, repo), fields(language = %language, rule_set_slug = %rule_set_slug, version = ?query.version))]
 pub async fn list_rules(
     Path((language, rule_set_slug)): Path<(String, String)>,
     Query(query): Query<VersionQuery>,
@@ -101,13 +104,13 @@ pub async fn list_rules(
         // Get version by name
         match repo.get_version_by_name(&rule_set_slug, &version_name)? {
             Some(v) => v,
-            None => return Err(AppError(eyre::eyre!("Version not found"))),
+            None => return Err(AppError(color_eyre::eyre::eyre!("Version not found"))),
         }
     } else {
         // Get current version
         match repo.get_current_version(&rule_set_slug)? {
             Some(v) => v,
-            None => return Err(AppError(eyre::eyre!("Rule set not found"))),
+            None => return Err(AppError(color_eyre::eyre::eyre!("Rule set not found"))),
         }
     };
 
@@ -119,7 +122,7 @@ pub async fn list_rules(
     let rule_set = rule_sets
         .into_iter()
         .find(|rs| rs.slug == rule_set_slug)
-        .ok_or_else(|| eyre::eyre!("Rule set '{}' not found", rule_set_slug))?;
+        .ok_or_else(|| color_eyre::eyre::eyre!("Rule set '{}' not found", rule_set_slug))?;
 
     // Build hierarchical tree structure
     let rule_tree = build_rule_tree(rules_with_content);
@@ -139,6 +142,7 @@ pub async fn list_rules(
 }
 
 /// GET /en/rules/indoor/spirit-respectful-language - Show specific rule
+#[instrument(skip(templates, repo), fields(language = %language, rule_set_slug = %rule_set_slug, rule_slug = %rule_slug, version = ?query.version))]
 pub async fn show_rule(
     Path((language, rule_set_slug, rule_slug)): Path<(String, String, String)>,
     Query(query): Query<VersionQuery>,
@@ -150,26 +154,26 @@ pub async fn show_rule(
         // Get version by name
         match repo.get_version_by_name(&rule_set_slug, &version_name)? {
             Some(v) => v,
-            None => return Err(AppError(eyre::eyre!("Version not found"))),
+            None => return Err(AppError(color_eyre::eyre::eyre!("Version not found"))),
         }
     } else {
         // Get current version
         match repo.get_current_version(&rule_set_slug)? {
             Some(v) => v,
-            None => return Err(AppError(eyre::eyre!("Rule set not found"))),
+            None => return Err(AppError(color_eyre::eyre::eyre!("Rule set not found"))),
         }
     };
 
     // Get the rule
     let rule = match repo.get_rule_by_slug(&rule_slug, &version.id)? {
         Some(r) => r,
-        None => return Err(AppError(eyre::eyre!("Rule not found"))),
+        None => return Err(AppError(color_eyre::eyre::eyre!("Rule not found"))),
     };
 
     // Get rule content in requested language
     let content = match repo.get_rule_content(&rule.id, &language)? {
         Some(c) => c,
-        None => return Err(AppError(eyre::eyre!("Rule content not found"))),
+        None => return Err(AppError(color_eyre::eyre::eyre!("Rule content not found"))),
     };
 
     // Get all rules with content for this version and build the full tree
@@ -238,6 +242,7 @@ struct DefinitionsPageData {
 }
 
 /// Handler for displaying definitions/glossary page
+#[instrument(skip(repository, template_env), fields(language = %language, rule_set_slug = %rule_set_slug))]
 pub async fn definitions_page(
     Path((language, rule_set_slug)): Path<(String, String)>,
     State(repository): State<RuleRepository>,
@@ -248,12 +253,12 @@ pub async fn definitions_page(
     let rule_set = rule_sets
         .iter()
         .find(|rs| rs.slug == rule_set_slug)
-        .ok_or_else(|| eyre::eyre!("Rule set '{}' not found", rule_set_slug))?;
+        .ok_or_else(|| color_eyre::eyre::eyre!("Rule set '{}' not found", rule_set_slug))?;
 
     // Get the current version for this rule set
     let version = repository
         .get_current_version(&rule_set_slug)?
-        .ok_or_else(|| eyre::eyre!("No current version found"))?;
+        .ok_or_else(|| color_eyre::eyre::eyre!("No current version found"))?;
 
     // Get all glossary terms for this rule set and version
     let glossary_terms = repository.get_glossary_terms(&rule_set.id, &version.id, &language)?;

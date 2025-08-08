@@ -6,3 +6,9 @@ port = 8000
 
 [database]
 url = "db/regelator.db"
+
+[logging]
+level = "info"
+format = "tree"
+enable_colors = true
+

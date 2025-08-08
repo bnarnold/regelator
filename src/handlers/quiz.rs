@@ -7,6 +7,7 @@ use minijinja::Environment;
 use rand::seq::IndexedRandom;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tracing::{instrument, Span};
 
 #[derive(Serialize)]
 pub struct QuizLandingData {
@@ -88,6 +89,7 @@ pub struct QuizSubmission {
 }
 
 /// Quiz landing page
+#[instrument(skip(template_env), fields(language = %language, rule_set_slug = %rule_set_slug))]
 pub async fn quiz_landing(
     Path((language, rule_set_slug)): Path<(String, String)>,
     State(template_env): State<Arc<Environment<'static>>>,
@@ -104,6 +106,7 @@ pub async fn quiz_landing(
 }
 
 /// Start a new quiz session
+#[instrument(skip(repository, template_env), fields(language = %language, rule_set_slug = %rule_set_slug))]
 pub async fn start_quiz_session(
     Path((language, rule_set_slug)): Path<(String, String)>,
     State(repository): State<RuleRepository>,
@@ -123,6 +126,7 @@ pub async fn start_quiz_session(
 }
 
 /// Get a random quiz question (for form redirects)
+#[instrument(skip(repository, template_env, form_data), fields(language = %language, rule_set_slug = %rule_set_slug, session_id))]
 pub async fn random_quiz_question(
     Path((language, rule_set_slug)): Path<(String, String)>,
     State(repository): State<RuleRepository>,
@@ -131,8 +135,11 @@ pub async fn random_quiz_question(
 ) -> Result<Html<String>, AppError> {
     let session_id = form_data
         .get("session_id")
-        .ok_or_else(|| AppError(eyre::eyre!("Session ID required")))?
+        .ok_or_else(|| AppError(color_eyre::eyre::eyre!("Session ID required")))?
         .clone();
+
+    // Add session_id to the current span
+    Span::current().record("session_id", &session_id);
 
     get_quiz_question_for_session(
         repository,
@@ -156,11 +163,11 @@ async fn get_quiz_question_for_session(
     let rule_set = rule_sets
         .iter()
         .find(|rs| rs.slug == rule_set_slug)
-        .ok_or_else(|| AppError(eyre::eyre!("Rule set not found")))?;
+        .ok_or_else(|| AppError(color_eyre::eyre::eyre!("Rule set not found")))?;
 
     let version = repository
         .get_current_version(&rule_set_slug)?
-        .ok_or_else(|| AppError(eyre::eyre!("No current version found")))?;
+        .ok_or_else(|| AppError(color_eyre::eyre::eyre!("No current version found")))?;
 
     // Get questions not yet attempted in this session
     let questions =
@@ -182,7 +189,7 @@ async fn get_quiz_question_for_session(
     let mut rng = rand::rng();
     let selected_question = questions
         .choose(&mut rng)
-        .ok_or_else(|| AppError(eyre::eyre!("Failed to select random question")))?;
+        .ok_or_else(|| AppError(color_eyre::eyre::eyre!("Failed to select random question")))?;
 
     // Get answers for this question
     let db_answers = repository.get_quiz_answers(&selected_question.id)?;
@@ -252,17 +259,23 @@ async fn show_session_complete(
     Ok(Html(response))
 }
 
-/// Submit quiz answer and show results
+/// Submit quiz answer and show results  
+#[instrument(skip(repository, template_env, submission), fields(language = %language, rule_set_slug = %rule_set_slug, session_id, question_id, answer_id))]
 pub async fn submit_quiz_answer(
-    Path((_language, _rule_set_slug)): Path<(String, String)>,
+    Path((language, rule_set_slug)): Path<(String, String)>,
     State(repository): State<RuleRepository>,
     State(template_env): State<Arc<Environment<'static>>>,
     Form(submission): Form<QuizSubmission>,
 ) -> Result<Html<String>, AppError> {
+    // Record form data in span
+    Span::current().record("session_id", &submission.session_id);
+    Span::current().record("question_id", &submission.question_id);
+    Span::current().record("answer_id", &submission.answer_id);
+
     // Get the question by ID
     let question = repository
         .get_quiz_question_by_id(&submission.question_id)?
-        .ok_or_else(|| AppError(eyre::eyre!("Question not found")))?;
+        .ok_or_else(|| AppError(color_eyre::eyre::eyre!("Question not found")))?;
 
     let answers = repository.get_quiz_answers(&submission.question_id)?;
 
@@ -270,7 +283,7 @@ pub async fn submit_quiz_answer(
     let selected_answer = answers
         .iter()
         .find(|a| a.id == submission.answer_id)
-        .ok_or_else(|| AppError(eyre::eyre!("Answer not found")))?;
+        .ok_or_else(|| AppError(color_eyre::eyre::eyre!("Answer not found")))?;
 
     let is_correct = selected_answer.is_correct;
 
@@ -299,10 +312,10 @@ pub async fn submit_quiz_answer(
     let rule_set = rule_sets
         .iter()
         .find(|rs| rs.slug == submission.rule_set_slug)
-        .ok_or_else(|| AppError(eyre::eyre!("Rule set not found")))?;
+        .ok_or_else(|| AppError(color_eyre::eyre::eyre!("Rule set not found")))?;
     let version = repository
         .get_current_version(&submission.rule_set_slug)?
-        .ok_or_else(|| AppError(eyre::eyre!("No current version found")))?;
+        .ok_or_else(|| AppError(color_eyre::eyre::eyre!("No current version found")))?;
 
     let all_questions = repository.get_quiz_questions(&rule_set.id, &version.id)?;
     let total_questions_available = all_questions.len();
@@ -342,6 +355,7 @@ pub async fn submit_quiz_answer(
 }
 
 /// Clear session data for privacy
+#[instrument(skip(repository), fields(session_id = %session_id))]
 pub async fn clear_session_data(
     State(repository): State<RuleRepository>,
     Path(session_id): Path<String>,

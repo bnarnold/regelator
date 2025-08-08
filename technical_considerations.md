@@ -441,6 +441,52 @@ struct SessionStatsView { ... }
 - Foundation for implementing logging, metrics, and observability
 - Reduced cognitive load when working on specific functional areas
 
+### Story 2: Comprehensive Observability with Tracing and Instrumentation
+**What worked well:**
+- `tracing` crate provides excellent structured logging with minimal overhead
+- `#[instrument]` macro automatically captures function parameters and spans
+- `color-eyre` significantly improves error reporting with better stack traces
+- Configuration-based logging enables different formats (tree/JSON) per environment
+- Span recording allows dynamic addition of context (usernames, IDs, operation details)
+- `tracing-tree` provides beautiful hierarchical logging for development debugging
+
+**What to improve:**
+- Initial learning curve for understanding span context and recording patterns
+- Need to balance instrumentation detail with performance overhead
+- Some redundant context recording could be optimized
+
+**Technical debt:**
+- Eliminated: println! statements throughout import scripts and handlers
+- Eliminated: Basic eyre error handling without context
+- Created: Comprehensive observability infrastructure ready for production monitoring
+
+**Key decisions:**
+- Used `#[instrument]` macros on all handler functions for automatic span creation
+- Added span recording for security-sensitive operations (username tracking, admin actions)
+- Configured environment-specific logging (tree format for local, JSON for production)
+- Replaced `eyre` with `color-eyre` for enhanced error context and stack traces
+- Added structured logging configuration with levels, formats, and color control
+
+**Architecture Lessons:**
+- Tracing instrumentation should be added early in development, not retrofitted
+- `#[instrument]` macro with selective field recording provides the right balance of detail vs performance
+- Environment-based logging configuration enables development debugging while maintaining production efficiency
+- Span context recording allows rich operational visibility without performance impact
+- Import scripts benefit significantly from proper logging instead of println! debugging
+
+**Production Readiness Achieved:**
+- **Operational Visibility**: Complete request tracing with user context and timing information
+- **Error Debugging**: Enhanced stack traces and error context for production troubleshooting
+- **Audit Trail**: Structured logging captures all admin operations with user attribution
+- **Performance Monitoring**: Automatic timing and span hierarchy for performance analysis
+- **Development Experience**: Beautiful tree-formatted logs make local debugging significantly easier
+
+**Security and Compliance Benefits:**
+- **User Attribution**: All admin actions automatically logged with username context
+- **Operation Tracking**: Complete audit trail of system modifications and access
+- **Error Analysis**: Structured error reporting enables security incident investigation
+- **Non-PII Logging**: Careful span recording avoids logging sensitive user data while maintaining operational visibility
+
 ### Story 1.2: Admin Authentication System Unification
 **What worked well:**
 - AdminToken newtype wrapper provides compile-time authentication guarantees
@@ -485,4 +531,4 @@ struct SessionStatsView { ... }
 
 ---
 
-*Last updated: 2025-08-07*
+*Last updated: 2025-08-08*

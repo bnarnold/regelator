@@ -6,6 +6,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use color_eyre::eyre::Context;
 use diesel::{
     r2d2::{ConnectionManager, Pool},
     sql_query,
@@ -16,13 +17,14 @@ use minijinja::{Environment, Value};
 use pulldown_cmark::{html, Event, Parser, Tag};
 use std::collections::HashMap;
 use std::sync::Arc;
+use tracing::{info, instrument, level_filters::LevelFilter};
 
 mod handlers;
 mod models;
 mod repository;
 mod schema;
 
-use regelator::config::Config;
+use regelator::config::{Config, LoggingConfig};
 use repository::RuleRepository;
 
 type DbPool = Pool<ConnectionManager<SqliteConnection>>;
@@ -115,9 +117,9 @@ struct AppState {
 }
 
 impl AppState {
-    fn new() -> Result<Self, eyre::Error> {
-        let config =
-            Config::load().map_err(|e| eyre::eyre!("Failed to load configuration: {}", e))?;
+    fn new() -> Result<Self, color_eyre::eyre::Error> {
+        let config = Config::load()
+            .map_err(|e| color_eyre::eyre::eyre!("Failed to load configuration: {}", e))?;
 
         let mut env = Environment::new();
         env.set_loader(minijinja::path_loader("src/templates"));
@@ -137,33 +139,81 @@ impl AppState {
     }
 }
 
-struct AppError(eyre::Error);
+struct AppError(color_eyre::eyre::Error);
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        eprintln!("Application error: {:?}", self.0);
+        tracing::error!("Application error: {:?}", self.0);
         (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error").into_response()
     }
 }
 
 impl<E> From<E> for AppError
 where
-    E: Into<eyre::Error>,
+    E: Into<color_eyre::eyre::Error>,
 {
     fn from(err: E) -> Self {
         Self(err.into())
     }
 }
 
+#[instrument(skip(state))]
 async fn health(State(state): State<AppState>) -> Result<&'static str, AppError> {
     let mut conn = state.db.get()?;
     sql_query("SELECT 1=1").execute(&mut conn)?;
     Ok("OK")
 }
 
+/// Initialize tracing subscriber based on configuration
+fn init_tracing(config: &LoggingConfig) -> color_eyre::Result<()> {
+    use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
+
+    let env_filter = EnvFilter::builder()
+        .with_default_directive(LevelFilter::from_level(config.level).into())
+        .from_env()
+        .context("Set up env filter")?;
+
+    match config.format.as_str() {
+        "tree" => {
+            let tree = tracing_tree::HierarchicalLayer::new(2)
+                .with_targets(true)
+                .with_ansi(config.enable_colors)
+                .with_bracketed_fields(true);
+
+            Registry::default().with(env_filter).with(tree).init();
+        }
+        "json" => {
+            let json_layer = tracing_subscriber::fmt::layer()
+                .json()
+                .with_current_span(false)
+                .with_span_list(true)
+                .with_timer(tracing_subscriber::fmt::time::SystemTime);
+
+            Registry::default().with(env_filter).with(json_layer).init();
+        }
+        _ => {
+            // Default to compact format
+            let fmt_layer = tracing_subscriber::fmt::layer()
+                .compact()
+                .with_ansi(config.enable_colors)
+                .with_timer(tracing_subscriber::fmt::time::SystemTime);
+
+            Registry::default().with(env_filter).with(fmt_layer).init();
+        }
+    }
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() {
+    // Initialize error reporting
+    color_eyre::install().expect("Failed to install color-eyre");
+
     let state = AppState::new().expect("Failed to initialize application state");
+
+    // Initialize tracing
+    init_tracing(&state.config.logging).expect("Failed to initialize tracing");
 
     let bind_address = state.config.bind_address();
 
@@ -262,7 +312,7 @@ async fn main() {
         .expect("Bind socket");
 
     let actual_address = listener.local_addr().expect("Get local address");
-    println!("Server listening on {actual_address}");
+    info!("Server listening on {}", actual_address);
 
     axum::serve(listener, app).await.expect("Serve app");
 }

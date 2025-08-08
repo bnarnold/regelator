@@ -1,9 +1,10 @@
+use color_eyre::{eyre::WrapErr, Result};
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::sqlite::SqliteConnection;
-use eyre::{Result, WrapErr};
 use regex::Regex;
 use std::collections::HashMap;
 use std::io::{self, BufRead};
+use tracing::{info, warn};
 use uuid::Uuid;
 
 use regelator::config::{Config, ImportConfig};
@@ -131,7 +132,7 @@ fn import_rules(rule_data: Vec<RuleData>) -> Result<()> {
         description: Some("Official WFDF Ultimate rules".to_string()),
     };
 
-    println!("Creating rule set...");
+    info!("Creating rule set...");
     repo.create_rule_set(rule_set)?;
 
     // Create version
@@ -149,7 +150,7 @@ fn import_rules(rule_data: Vec<RuleData>) -> Result<()> {
         is_current: true,
     };
 
-    println!("Creating version...");
+    info!("Creating version...");
     repo.create_version(version)?;
 
     // Build number -> slug mapping for reference processing
@@ -167,8 +168,8 @@ fn import_rules(rule_data: Vec<RuleData>) -> Result<()> {
                 process_number_references(&rule.content, &number_to_slug);
 
             if !broken_refs.is_empty() {
-                println!(
-                    "Warning: Rule {} contains potential broken references: {:?}",
+                warn!(
+                    "Rule {} contains potential broken references: {:?}",
                     rule.number, broken_refs
                 );
             }
@@ -188,7 +189,7 @@ fn import_rules(rule_data: Vec<RuleData>) -> Result<()> {
     // Track rule IDs by their number for parent relationships
     let mut rule_ids: HashMap<String, String> = HashMap::new();
 
-    println!("Creating {} rules...", sorted_rules.len());
+    info!("Creating {} rules...", sorted_rules.len());
 
     // Create rules
     for rule_data in sorted_rules {
@@ -206,7 +207,7 @@ fn import_rules(rule_data: Vec<RuleData>) -> Result<()> {
             number: rule_data.number.clone(),
         };
 
-        println!(
+        info!(
             "Creating rule {} ({}): {}",
             rule_data.number, rule_data.slug, rule_data.content
         );
@@ -228,15 +229,18 @@ fn import_rules(rule_data: Vec<RuleData>) -> Result<()> {
         repo.create_rule_content(content)?;
     }
 
-    println!("Import completed successfully!");
+    info!("Import completed successfully!");
     Ok(())
 }
 
 fn main() -> Result<()> {
+    color_eyre::install()?;
+    tracing_subscriber::fmt::init();
+
     let rules = read_rules_from_stdin()?;
 
     if rules.is_empty() {
-        println!("No rules provided");
+        warn!("No rules provided");
         return Ok(());
     }
 

@@ -3,10 +3,10 @@
     reason = "Some CRUD methods were generated without immediate use"
 )]
 
+use color_eyre::{eyre::WrapErr, Result};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::sqlite::SqliteConnection;
-use eyre::{Result, WrapErr};
 
 use crate::models::*;
 
@@ -774,7 +774,7 @@ impl RuleRepository {
         .wrap_err("Failed to update admin password")?;
 
         if rows_affected == 0 {
-            return Err(eyre::eyre!(
+            return Err(color_eyre::eyre::eyre!(
                 "Password update failed - current password incorrect or admin not found"
             ));
         }

@@ -1,29 +1,101 @@
 use config::{Config as ConfigBuilder, ConfigError, Environment, File};
-use serde::{Deserialize, Serialize};
-use std::env;
+use serde::{de, Deserialize, Deserializer};
+use std::{env, str::FromStr};
+use tracing::Level;
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub server: ServerConfig,
     pub database: DatabaseConfig,
     pub security: SecurityConfig,
+    pub logging: LoggingConfig,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ServerConfig {
     pub host: String,
     pub port: u16,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct DatabaseConfig {
     pub url: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct SecurityConfig {
     pub session_duration_hours: u32,
     pub jwt_secret: String,
+}
+
+fn deserialize_level<'de, D>(deserializer: D) -> Result<Level, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct LevelVisitor;
+
+    impl<'de> de::Visitor<'de> for LevelVisitor {
+        type Value = Level;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("a string representing a log level")
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Level::from_str(value).map_err(de::Error::custom)
+        }
+
+        fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            self.visit_str(&value)
+        }
+    }
+
+    deserializer.deserialize_any(LevelVisitor)
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct LoggingConfig {
+    #[serde(deserialize_with = "deserialize_level")]
+    pub level: Level,
+    pub format: String,
+    pub enable_colors: bool,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ImportConfig {
+    pub rule_set_name: String,
+    pub rule_set_slug: String,
+    pub version_name: String,
+    pub version_effective_date: String,
+}
+
+impl ImportConfig {
+    /// Load configuration from TOML files and environment variables
+    pub fn load() -> Result<Self, ConfigError> {
+        // Load .env file if it exists (ignore errors if it doesn't exist)
+        let _ = dotenvy::dotenv();
+
+        let environment = env::var("REGELATOR_ENV").unwrap_or_else(|_| "local".to_string());
+
+        let config = ConfigBuilder::builder()
+            // Load shared configuration
+            .add_source(File::with_name("config/shared").required(false))
+            // Load environment-specific configuration
+            .add_source(File::with_name(&format!("config/{environment}")).required(false))
+            // Override with environment variables prefixed with REGELATOR__
+            .add_source(Environment::with_prefix("REGELATOR").separator("__"))
+            .build()?;
+
+        let loaded_config: ImportConfig = config.try_deserialize()?;
+
+        Ok(loaded_config)
+    }
 }
 impl Config {
     /// Load configuration from TOML files and environment variables
@@ -78,37 +150,6 @@ impl Config {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ImportConfig {
-    pub rule_set_name: String,
-    pub rule_set_slug: String,
-    pub version_name: String,
-    pub version_effective_date: String,
-}
-
-impl ImportConfig {
-    /// Load configuration from TOML files and environment variables
-    pub fn load() -> Result<Self, ConfigError> {
-        // Load .env file if it exists (ignore errors if it doesn't exist)
-        let _ = dotenvy::dotenv();
-
-        let environment = env::var("REGELATOR_ENV").unwrap_or_else(|_| "local".to_string());
-
-        let config = ConfigBuilder::builder()
-            // Load shared configuration
-            .add_source(File::with_name("config/shared").required(false))
-            // Load environment-specific configuration
-            .add_source(File::with_name(&format!("config/{environment}")).required(false))
-            // Override with environment variables prefixed with REGELATOR__
-            .add_source(Environment::with_prefix("REGELATOR").separator("__"))
-            .build()?;
-
-        let loaded_config: ImportConfig = config.try_deserialize()?;
-
-        Ok(loaded_config)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -126,6 +167,11 @@ mod tests {
             security: SecurityConfig {
                 session_duration_hours: 2,
                 jwt_secret: "test-secret-that-is-long-enough-for-validation".to_string(),
+            },
+            logging: LoggingConfig {
+                level: Level::INFO,
+                format: "tree".to_string(),
+                enable_colors: true,
             },
         };
 
@@ -145,6 +191,11 @@ mod tests {
             security: SecurityConfig {
                 session_duration_hours: 4,
                 jwt_secret: "test-secret-that-is-long-enough-for-validation".to_string(),
+            },
+            logging: LoggingConfig {
+                level: Level::INFO,
+                format: "tree".to_string(),
+                enable_colors: true,
             },
         };
 

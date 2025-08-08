@@ -1,8 +1,9 @@
+use color_eyre::{eyre::WrapErr, Result};
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::sqlite::SqliteConnection;
-use eyre::{Result, WrapErr};
 use regex::Regex;
 use std::io::{self, BufRead};
+use tracing::{info, warn};
 
 use regelator::config::{Config, ImportConfig};
 use regelator::models::*;
@@ -64,7 +65,7 @@ fn read_definitions_from_stdin() -> Result<Vec<DefinitionData>> {
             }
             current_definition.push_str(line);
         } else {
-            eprintln!("Warning: Skipping line outside definition: {line}");
+            warn!("Skipping line outside definition: {}", line);
         }
     }
 
@@ -106,7 +107,7 @@ fn import_definitions(definitions: Vec<DefinitionData>) -> Result<()> {
         .iter()
         .find(|rs| rs.slug == *rule_set_slug)
         .ok_or_else(|| {
-            eyre::eyre!(
+            color_eyre::eyre::eyre!(
                 "Rule set '{}' not found. Please import rules first.",
                 rule_set_slug
             )
@@ -114,16 +115,18 @@ fn import_definitions(definitions: Vec<DefinitionData>) -> Result<()> {
 
     let version = repo
         .get_version_by_name(&rule_set_slug, &version_name)?
-        .ok_or_else(|| eyre::eyre!("No current version found for rule set '{}'", rule_set_slug))?;
+        .ok_or_else(|| {
+            color_eyre::eyre::eyre!("No current version found for rule set '{}'", rule_set_slug)
+        })?;
 
     let definitions_count = definitions.len();
-    println!(
+    info!(
         "Importing {} definitions into rule set '{}' version '{}'",
         definitions_count, rule_set.name, version.version_name
     );
 
     for definition in definitions {
-        println!("  Importing: {} -> {}", definition.term, definition.slug);
+        info!("Importing: {} -> {}", definition.term, definition.slug);
 
         // Create glossary term
         let new_term = NewGlossaryTerm::new(
@@ -145,14 +148,17 @@ fn import_definitions(definitions: Vec<DefinitionData>) -> Result<()> {
         repo.create_glossary_content(new_content)?;
     }
 
-    println!("Successfully imported {definitions_count} definitions");
+    info!("Successfully imported {} definitions", definitions_count);
     Ok(())
 }
 
 fn main() -> Result<()> {
+    color_eyre::install()?;
+    tracing_subscriber::fmt::init();
+
     let definitions = read_definitions_from_stdin()?;
     if definitions.is_empty() {
-        println!("No definitions provided");
+        warn!("No definitions provided");
         return Ok(());
     }
     import_definitions(definitions)
