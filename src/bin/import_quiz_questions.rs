@@ -5,7 +5,7 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::io::{self, BufRead};
 
-use regelator::config::Config;
+use regelator::config::{Config, ImportConfig};
 use regelator::models::*;
 use regelator::repository::RuleRepository;
 
@@ -30,9 +30,10 @@ fn main() -> Result<()> {
     // Configuration constants
     // Load configuration
     let config = Config::load().wrap_err("Failed to load configuration")?;
+    let import_config = ImportConfig::load().wrap_err("Failed to load configuration")?;
 
-    let rule_set_slug = &config.import.rule_set_slug;
-    let version_name = &config.import.version_name;
+    let rule_set_slug = import_config.rule_set_slug;
+    let version_name = import_config.version_name;
     let language = "en";
 
     let manager = ConnectionManager::<SqliteConnection>::new(&config.database.url);
@@ -56,7 +57,7 @@ fn main() -> Result<()> {
         .ok_or_else(|| eyre::eyre!("Rule set '{}' not found", rule_set_slug))?;
 
     let version = repository
-        .get_current_version(rule_set_slug)?
+        .get_version_by_name(&rule_set_slug, &version_name)?
         .ok_or_else(|| eyre::eyre!("No current version found for rule set '{}'", rule_set_slug))?;
 
     // Get all rules to build number-to-slug and number-to-id mappings

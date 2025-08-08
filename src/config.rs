@@ -7,7 +7,6 @@ pub struct Config {
     pub server: ServerConfig,
     pub database: DatabaseConfig,
     pub security: SecurityConfig,
-    pub import: ImportConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -26,15 +25,6 @@ pub struct SecurityConfig {
     pub session_duration_hours: u32,
     pub jwt_secret: String,
 }
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ImportConfig {
-    pub rule_set_name: String,
-    pub rule_set_slug: String,
-    pub version_name: String,
-    pub version_effective_date: String,
-}
-
 impl Config {
     /// Load configuration from TOML files and environment variables
     pub fn load() -> Result<Self, ConfigError> {
@@ -52,7 +42,7 @@ impl Config {
             .add_source(Environment::with_prefix("REGELATOR").separator("__"))
             .build()?;
 
-        let mut loaded_config: Config = config.try_deserialize()?;
+        let loaded_config: Config = config.try_deserialize()?;
 
         // Validate configuration
         loaded_config.validate()?;
@@ -88,6 +78,37 @@ impl Config {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ImportConfig {
+    pub rule_set_name: String,
+    pub rule_set_slug: String,
+    pub version_name: String,
+    pub version_effective_date: String,
+}
+
+impl ImportConfig {
+    /// Load configuration from TOML files and environment variables
+    pub fn load() -> Result<Self, ConfigError> {
+        // Load .env file if it exists (ignore errors if it doesn't exist)
+        let _ = dotenvy::dotenv();
+
+        let environment = env::var("REGELATOR_ENV").unwrap_or_else(|_| "local".to_string());
+
+        let config = ConfigBuilder::builder()
+            // Load shared configuration
+            .add_source(File::with_name("config/shared").required(false))
+            // Load environment-specific configuration
+            .add_source(File::with_name(&format!("config/{}", environment)).required(false))
+            // Override with environment variables prefixed with REGELATOR__
+            .add_source(Environment::with_prefix("REGELATOR").separator("__"))
+            .build()?;
+
+        let loaded_config: ImportConfig = config.try_deserialize()?;
+
+        Ok(loaded_config)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -105,12 +126,6 @@ mod tests {
             security: SecurityConfig {
                 session_duration_hours: 2,
                 jwt_secret: "test-secret-that-is-long-enough-for-validation".to_string(),
-            },
-            import: ImportConfig {
-                rule_set_name: "Test Rules".to_string(),
-                rule_set_slug: "test-rules".to_string(),
-                version_name: "Test Version".to_string(),
-                version_effective_date: "2025-01-01".to_string(),
             },
         };
 
@@ -130,12 +145,6 @@ mod tests {
             security: SecurityConfig {
                 session_duration_hours: 4,
                 jwt_secret: "test-secret-that-is-long-enough-for-validation".to_string(),
-            },
-            import: ImportConfig {
-                rule_set_name: "Test Rules".to_string(),
-                rule_set_slug: "test-rules".to_string(),
-                version_name: "Test Version".to_string(),
-                version_effective_date: "2025-01-01".to_string(),
             },
         };
 

@@ -4,7 +4,7 @@ use eyre::{Result, WrapErr};
 use regex::Regex;
 use std::io::{self, BufRead};
 
-use regelator::config::Config;
+use regelator::config::{Config, ImportConfig};
 use regelator::models::*;
 use regelator::repository::RuleRepository;
 
@@ -87,6 +87,7 @@ fn read_definitions_from_stdin() -> Result<Vec<DefinitionData>> {
 fn import_definitions(definitions: Vec<DefinitionData>) -> Result<()> {
     // Load configuration
     let config = Config::load().wrap_err("Failed to load configuration")?;
+    let import_config = ImportConfig::load().wrap_err("Failed to load configuration")?;
 
     // Database setup
     let manager = ConnectionManager::<SqliteConnection>::new(&config.database.url);
@@ -96,8 +97,8 @@ fn import_definitions(definitions: Vec<DefinitionData>) -> Result<()> {
 
     let repo = RuleRepository::new(pool);
 
-    let rule_set_slug = &config.import.rule_set_slug;
-    let version_name = &config.import.version_name;
+    let rule_set_slug = import_config.rule_set_slug;
+    let version_name = import_config.version_name;
 
     // Find the rule set by slug
     let rule_sets = repo.get_rule_sets()?;
@@ -112,7 +113,7 @@ fn import_definitions(definitions: Vec<DefinitionData>) -> Result<()> {
         })?;
 
     let version = repo
-        .get_current_version(&rule_set.slug)?
+        .get_version_by_name(&rule_set_slug, &version_name)?
         .ok_or_else(|| eyre::eyre!("No current version found for rule set '{}'", rule_set_slug))?;
 
     let definitions_count = definitions.len();
