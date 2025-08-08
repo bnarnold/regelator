@@ -63,6 +63,17 @@ The underlying rules document, and all applications, should be localized, with a
 - Format code with `cargo fmt`
 - Lint code with `cargo clippy`
 
+## Code Quality Requirements
+
+**IMPORTANT**: Before committing any code changes, ALWAYS run these commands in order:
+
+1. `cargo fmt` - Format all code consistently
+2. `cargo clippy --fix` - Auto-fix linting issues where possible
+3. `cargo check` - Verify compilation without building
+4. `cargo clippy` - Check for any remaining lint warnings
+
+These steps ensure code quality, consistency, and catch common issues before they enter the repository. All clippy warnings should be resolved before committing.
+
 ## Configuration System
 
 Regelator uses a TOML-based configuration system with environment variable overrides:
