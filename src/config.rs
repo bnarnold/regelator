@@ -37,7 +37,7 @@ impl Config {
             // Load shared configuration
             .add_source(File::with_name("config/shared").required(false))
             // Load environment-specific configuration
-            .add_source(File::with_name(&format!("config/{}", environment)).required(false))
+            .add_source(File::with_name(&format!("config/{environment}")).required(false))
             // Override with environment variables prefixed with REGELATOR__
             .add_source(Environment::with_prefix("REGELATOR").separator("__"))
             .build()?;
@@ -98,7 +98,7 @@ impl ImportConfig {
             // Load shared configuration
             .add_source(File::with_name("config/shared").required(false))
             // Load environment-specific configuration
-            .add_source(File::with_name(&format!("config/{}", environment)).required(false))
+            .add_source(File::with_name(&format!("config/{environment}")).required(false))
             // Override with environment variables prefixed with REGELATOR__
             .add_source(Environment::with_prefix("REGELATOR").separator("__"))
             .build()?;

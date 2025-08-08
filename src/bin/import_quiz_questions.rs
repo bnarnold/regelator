@@ -130,14 +130,14 @@ fn parse_quiz_questions(lines: &[String]) -> Result<Vec<QuizQuestionImport>> {
     while i < lines.len() {
         let line = lines[i].trim();
 
-        if line.starts_with("Q: ") {
+        if let Some(question_line) = line.strip_prefix("Q: ") {
             // Save previous question if exists
             if let Some(question) = current_question.take() {
                 questions.push(question);
             }
 
             // Parse question with difficulty
-            let question_line = &line[3..]; // Remove "Q: "
+            // Remove "Q: "
             let (difficulty, question_text) = parse_question_with_difficulty(question_line)?;
 
             current_question = Some(QuizQuestionImport {
@@ -147,29 +147,28 @@ fn parse_quiz_questions(lines: &[String]) -> Result<Vec<QuizQuestionImport>> {
                 explanation: String::new(),
                 rule_references: Vec::new(),
             });
-        } else if line.starts_with("REF: ") {
+        } else if let Some(refs) = line.strip_prefix("REF: ") {
             // Parse rule references
             if let Some(ref mut question) = current_question {
-                let refs = &line[5..]; // Remove "REF: "
+                // Remove "REF: "
                 for rule_ref in refs.split(',') {
                     question.rule_references.push(rule_ref.trim().to_string());
                 }
             }
-        } else if line.starts_with("A: ") {
+        } else if let Some(answer_line) = line.strip_prefix("A: ") {
             // Parse answer
             if let Some(ref mut question) = current_question {
-                let answer_line = &line[3..]; // Remove "A: "
+                // Remove "A: "
                 let (is_correct, answer_text) = parse_answer(answer_line);
                 question.answers.push(QuizAnswerImport {
                     text: answer_text.to_string(),
                     is_correct,
                 });
             }
-        } else if line.starts_with("EXPLAIN: ") {
+        } else if let Some(explanation_start) = line.strip_prefix("EXPLAIN: ") {
+            let mut explanation = explanation_start.to_string();
             // Parse explanation
             if let Some(ref mut question) = current_question {
-                let mut explanation = line[9..].to_string(); // Remove "EXPLAIN: "
-
                 // Check for multi-line explanations
                 i += 1;
                 while i < lines.len() && !lines[i].trim().is_empty() && !lines[i].starts_with("Q: ")
@@ -218,8 +217,8 @@ fn parse_question_with_difficulty(line: &str) -> Result<(String, &str)> {
 
 /// Parse answer line, checking for [CORRECT] flag
 fn parse_answer(line: &str) -> (bool, &str) {
-    if line.ends_with(" [CORRECT]") {
-        (true, &line[..line.len() - 10]) // Remove " [CORRECT]"
+    if let Some(correct_answer) = line.strip_suffix("[CORRECT]") {
+        (true, correct_answer)
     } else {
         (false, line)
     }
@@ -246,17 +245,13 @@ fn process_number_references(
         let match_end = mat.end();
 
         // Extract the rule number (handle both "Section X" and "X.Y" patterns)
-        let rule_number = if full_match.starts_with("Section ") {
-            &full_match[8..] // Remove "Section "
-        } else {
-            full_match
-        };
+        let rule_number = full_match.strip_prefix("Section ").unwrap_or(full_match);
 
         if let Some(slug) = number_to_slug.get(rule_number) {
             let replacement = if full_match.starts_with("Section ") {
-                format!("[Section {}](rule:{})", rule_number, slug)
+                format!("[Section {rule_number}](rule:{slug})")
             } else {
-                format!("[{}](rule:{})", rule_number, slug)
+                format!("[{rule_number}](rule:{slug})")
             };
             replacements.push((match_start, match_end, replacement));
         } else {

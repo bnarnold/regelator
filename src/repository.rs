@@ -814,7 +814,7 @@ impl RuleRepository {
 
         // Apply search filter
         if let Some(search) = search_query {
-            let search_pattern = format!("%{}%", search);
+            let search_pattern = format!("%{search}%");
             query = query.filter(
                 question_text
                     .like(search_pattern.clone())

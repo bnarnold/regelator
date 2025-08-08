@@ -1,3 +1,4 @@
+use crate::models::QuestionStatus;
 use crate::{repository::RuleRepository, AppError};
 use argon2::password_hash::{rand_core::OsRng, SaltString};
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
@@ -10,6 +11,7 @@ use minijinja::Environment;
 use regelator::auth::{clear_admin_cookie, create_admin_cookie, AdminToken};
 use regelator::config::Config;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use std::sync::Arc;
 
 // Admin authentication structures
@@ -225,7 +227,7 @@ pub async fn admin_change_password_submit(
 #[derive(Deserialize)]
 pub struct QuestionFilters {
     pub search: Option<String>,
-    pub status: Option<String>,
+    pub status: Option<QuestionStatus>,
     pub difficulty: Option<String>,
 }
 
@@ -245,7 +247,7 @@ pub struct QuestionForm {
 struct QuestionsListContext {
     questions: Vec<QuestionWithAnswers>,
     search_query: Option<String>,
-    status_filter: Option<String>,
+    status_filter: Option<QuestionStatus>,
     difficulty_filter: Option<String>,
     rule_set_name: String,
 }
@@ -277,10 +279,7 @@ pub async fn questions_list(
     Query(filters): Query<QuestionFilters>,
 ) -> Result<Html<String>, AppError> {
     // Parse status filter
-    let status_filter = filters
-        .status
-        .as_ref()
-        .and_then(|s| crate::models::quiz::QuestionStatus::from_str(s));
+    let status_filter = filters.status;
 
     // Get questions with filters
     let questions = repository.get_questions_filtered(

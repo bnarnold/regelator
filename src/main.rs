@@ -94,7 +94,7 @@ fn markdown_filter(
 fn rewrite_custom_link(dest_url: &str, link_map: &HashMap<String, String>) -> String {
     if let Some((scheme, slug)) = dest_url.split_once(':') {
         if let Some(prefix) = link_map.get(scheme) {
-            return format!("{}{}", prefix, slug);
+            return format!("{prefix}{slug}");
         }
     }
 
@@ -262,7 +262,7 @@ async fn main() {
         .expect("Bind socket");
 
     let actual_address = listener.local_addr().expect("Get local address");
-    println!("Server listening on {}", actual_address);
+    println!("Server listening on {actual_address}");
 
     axum::serve(listener, app).await.expect("Serve app");
 }

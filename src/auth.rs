@@ -109,7 +109,7 @@ impl From<jsonwebtoken::errors::Error> for AdminAuthError {
 impl std::fmt::Display for AdminAuthError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AdminAuthError::InvalidToken(e) => write!(f, "Invalid token: {}", e),
+            AdminAuthError::InvalidToken(e) => write!(f, "Invalid token: {e}"),
             AdminAuthError::Expired => write!(f, "Token expired"),
             AdminAuthError::Missing => write!(f, "No authentication token"),
         }

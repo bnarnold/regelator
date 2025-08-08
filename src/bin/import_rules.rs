@@ -64,7 +64,7 @@ fn process_number_references(
 
         if let Some(slug) = number_to_slug.get(rule_number) {
             // Replace with markdown link - both "Section X" and "X.Y" use rule: scheme
-            let markdown_link = format!("[{}](rule:{})", full_match, slug);
+            let markdown_link = format!("[{full_match}](rule:{slug})");
             replacements.push((mat.start(), mat.end(), markdown_link));
         } else {
             // Keep original but track as potential broken reference

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use diesel::deserialize::{FromSql, Result as DeserializeResult};
 use diesel::expression::AsExpression;
 use diesel::prelude::*;
@@ -11,7 +13,7 @@ use uuid::Uuid;
 use crate::schema::*;
 
 // Quiz question status enum
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsExpression, FromSqlRow)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AsExpression, FromSqlRow)]
 #[serde(rename_all = "lowercase")]
 #[diesel(sql_type = diesel::sql_types::Text)]
 pub enum QuestionStatus {
@@ -28,13 +30,17 @@ impl QuestionStatus {
             QuestionStatus::Archived => "archived",
         }
     }
+}
 
-    pub fn from_str(s: &str) -> Option<Self> {
+impl FromStr for QuestionStatus {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "draft" => Some(QuestionStatus::Draft),
-            "active" => Some(QuestionStatus::Active),
-            "archived" => Some(QuestionStatus::Archived),
-            _ => None,
+            "draft" => Ok(QuestionStatus::Draft),
+            "active" => Ok(QuestionStatus::Active),
+            "archived" => Ok(QuestionStatus::Archived),
+            s => Err(format!("invalid question status: {s}")),
         }
     }
 }
@@ -44,7 +50,7 @@ impl FromSql<diesel::sql_types::Text, Sqlite> for QuestionStatus {
         bytes: <Sqlite as diesel::backend::Backend>::RawValue<'_>,
     ) -> DeserializeResult<Self> {
         let s = <String as FromSql<diesel::sql_types::Text, Sqlite>>::from_sql(bytes)?;
-        Self::from_str(&s).ok_or_else(|| format!("Invalid question status: {}", s).into())
+        Ok(Self::from_str(&s)?)
     }
 }
 

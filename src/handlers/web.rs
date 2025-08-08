@@ -201,7 +201,7 @@ pub async fn show_rule(
     // Find the current rule in the tree and get its children
     let child_rules = find_rule_in_tree(&full_tree, &rule.slug)
         .map(|node| node.children.clone())
-        .unwrap_or_else(Vec::new);
+        .unwrap_or_default();
 
     let context = RuleDetailContext {
         language: language.clone(),
@@ -298,7 +298,7 @@ pub fn find_rule_in_tree<'a>(nodes: &'a [RuleNode], target_slug: &str) -> Option
 }
 
 /// Recursively sort rule nodes by number (numeric comparison)
-pub fn sort_rule_nodes_recursively(nodes: &mut Vec<RuleNode>) {
+pub fn sort_rule_nodes_recursively(nodes: &mut [RuleNode]) {
     // Sort current level
     nodes.sort_by(|a, b| {
         let a_parts: Vec<u32> = a.number.split('.').filter_map(|s| s.parse().ok()).collect();
@@ -402,7 +402,7 @@ mod tests {
         };
 
         let rule_content = RuleContent {
-            id: format!("{}_content", id),
+            id: format!("{id}_content"),
             rule_id: id.to_string(),
             language: "en".to_string(),
             content_markdown: content.to_string(),

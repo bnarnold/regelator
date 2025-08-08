@@ -64,7 +64,7 @@ fn read_definitions_from_stdin() -> Result<Vec<DefinitionData>> {
             }
             current_definition.push_str(line);
         } else {
-            eprintln!("Warning: Skipping line outside definition: {}", line);
+            eprintln!("Warning: Skipping line outside definition: {line}");
         }
     }
 
@@ -145,7 +145,7 @@ fn import_definitions(definitions: Vec<DefinitionData>) -> Result<()> {
         repo.create_glossary_content(new_content)?;
     }
 
-    println!("Successfully imported {} definitions", definitions_count);
+    println!("Successfully imported {definitions_count} definitions");
     Ok(())
 }
 
