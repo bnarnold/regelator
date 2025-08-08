@@ -2,6 +2,7 @@ use ammonia::clean;
 use axum::{
     extract::{FromRef, State},
     http::{header, HeaderValue, StatusCode},
+    middleware,
     response::{IntoResponse, Response},
     routing::{get, post},
     Router,
@@ -21,6 +22,7 @@ use tracing::{info, instrument, level_filters::LevelFilter};
 
 mod handlers;
 mod models;
+mod quiz_session;
 mod repository;
 mod schema;
 
@@ -237,25 +239,30 @@ async fn main() {
             "/quiz",
             get(|| async { axum::response::Redirect::to("/en/quiz/wfdf-ultimate") }),
         )
-        .route(
-            "/{language}/quiz/{rule_set_slug}",
-            get(handlers::quiz_landing),
-        )
-        .route(
-            "/{language}/quiz/{rule_set_slug}/start",
-            post(handlers::start_quiz_session),
-        )
-        .route(
-            "/{language}/quiz/{rule_set_slug}/question",
-            post(handlers::random_quiz_question),
-        )
-        .route(
-            "/{language}/quiz/{rule_set_slug}/submit",
-            post(handlers::submit_quiz_answer),
-        )
-        .route(
-            "/{language}/quiz/{rule_set_slug}/session/{session_id}/clear",
-            get(handlers::clear_session_data),
+        // Quiz routes with session middleware
+        .merge(
+            Router::new()
+                .route(
+                    "/{language}/quiz/{rule_set_slug}",
+                    get(handlers::quiz_landing),
+                )
+                .route(
+                    "/{language}/quiz/{rule_set_slug}/start",
+                    post(handlers::start_quiz_session),
+                )
+                .route(
+                    "/{language}/quiz/{rule_set_slug}/question",
+                    post(handlers::random_quiz_question),
+                )
+                .route(
+                    "/{language}/quiz/{rule_set_slug}/submit",
+                    post(handlers::submit_quiz_answer),
+                )
+                .route(
+                    "/{language}/quiz/{rule_set_slug}/clear",
+                    get(handlers::clear_session_data),
+                )
+                .layer(middleware::from_fn(quiz_session::quiz_session_middleware)),
         )
         // Admin routes
         .route(

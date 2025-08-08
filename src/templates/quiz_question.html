@@ -24,9 +24,8 @@
             
             <form action="/{{ language }}/quiz/{{ rule_set_slug }}/submit" method="post">
                 <input type="hidden" name="question_id" value="{{ question_id }}">
-                <input type="hidden" name="session_id" value="{{ session_id }}">
-                <input type="hidden" name="rule_set_slug" value="{{ rule_set_slug }}">
-                <input type="hidden" name="language" value="{{ language }}">
+                <!-- Session ID now handled by middleware cookie -->
+                <!-- Rule set slug and language come from path parameters -->
                 
                 <fieldset>
                     <legend>Select your answer:</legend>

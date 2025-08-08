@@ -33,9 +33,31 @@
 
     <section>
         <div style="text-align: center; margin: 2rem 0;">
+            {% if has_progress %}
+            <!-- Show continue option when quiz is in progress -->
+            <article style="max-width: 600px; margin: 0 auto 2rem auto;">
+                <header>
+                    <h3>Quiz in Progress</h3>
+                </header>
+                <p>You have answered {{ questions_attempted }} out of {{ total_questions }} questions in this session.</p>
+                <div class="progress" style="margin: 1rem 0;">
+                    <div role="progressbar" 
+                         aria-valuenow="{{ (questions_attempted / total_questions * 100) | round }}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100" 
+                         style="width: {{ (questions_attempted / total_questions * 100) | round }}%"></div>
+                </div>
+                <form action="/{{ language }}/quiz/{{ rule_set_slug }}/start" method="post">
+                    <button type="submit" class="contrast">Continue Quiz ({{ questions_attempted }}/{{ total_questions }})</button>
+                </form>
+                <p><small><a href="/{{ language }}/quiz/{{ rule_set_slug }}/clear">Start over with a new session</a></small></p>
+            </article>
+            {% else %}
+            <!-- Show start option for new quiz -->
             <form action="/{{ language }}/quiz/{{ rule_set_slug }}/start" method="post">
                 <button type="submit" class="contrast">Start Quiz</button>
             </form>
+            {% endif %}
         </div>
     </section>
 

@@ -1,10 +1,14 @@
-use crate::{models::NewQuizAttempt, repository::RuleRepository, AppError};
+use crate::{
+    models::NewQuizAttempt, quiz_session::QuizSession, repository::RuleRepository, AppError,
+};
 use axum::{
     extract::{Form, Path, State},
-    response::Html,
+    response::{Html, IntoResponse},
 };
+use axum_extra::extract::CookieJar;
 use minijinja::Environment;
 use rand::seq::IndexedRandom;
+use regelator::quiz_session::clear_quiz_session_cookie;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{instrument, Span};
@@ -13,6 +17,9 @@ use tracing::{instrument, Span};
 pub struct QuizLandingData {
     pub language: String,
     pub rule_set_slug: String,
+    pub has_progress: bool,
+    pub questions_attempted: usize,
+    pub total_questions: usize,
 }
 
 #[derive(Serialize)]
@@ -83,20 +90,53 @@ pub struct QuizAnswerWithResult {
 pub struct QuizSubmission {
     pub question_id: String,
     pub answer_id: String,
-    pub session_id: String,
-    pub rule_set_slug: String,
-    pub language: String,
+    // session_id now comes from QuizSession extractor
+    // rule_set_slug and language come from path parameters
 }
 
 /// Quiz landing page
-#[instrument(skip(template_env), fields(language = %language, rule_set_slug = %rule_set_slug))]
+#[instrument(skip(template_env, repository, quiz_session), fields(language = %language, rule_set_slug = %rule_set_slug, session_id = %quiz_session.session_id()))]
 pub async fn quiz_landing(
     Path((language, rule_set_slug)): Path<(String, String)>,
     State(template_env): State<Arc<Environment<'static>>>,
+    State(repository): State<RuleRepository>,
+    quiz_session: QuizSession,
 ) -> Result<Html<String>, AppError> {
+    let session_id = quiz_session.session_id();
+
+    // Check if there's existing progress for this session
+    let session_stats = repository.get_session_statistics(session_id).ok();
+    let has_progress = session_stats
+        .as_ref()
+        .is_some_and(|stats| stats.total_questions > 0);
+
+    // Get total available questions for progress calculation
+    let total_questions = if has_progress {
+        // Get the rule set and version to calculate total questions
+        let rule_sets = repository.get_rule_sets()?;
+        let rule_set = rule_sets
+            .iter()
+            .find(|rs| rs.slug == rule_set_slug)
+            .ok_or_else(|| AppError(color_eyre::eyre::eyre!("Rule set not found")))?;
+
+        let version = repository
+            .get_current_version(&rule_set_slug)?
+            .ok_or_else(|| AppError(color_eyre::eyre::eyre!("No current version found")))?;
+
+        let all_questions = repository.get_quiz_questions(&rule_set.id, &version.id)?;
+        all_questions.len()
+    } else {
+        0
+    };
+
     let template_data = QuizLandingData {
         language,
         rule_set_slug,
+        has_progress,
+        questions_attempted: session_stats
+            .as_ref()
+            .map_or(0, |stats| stats.total_questions),
+        total_questions,
     };
 
     let template = template_env.get_template("quiz_landing.html")?;
@@ -106,15 +146,16 @@ pub async fn quiz_landing(
 }
 
 /// Start a new quiz session
-#[instrument(skip(repository, template_env), fields(language = %language, rule_set_slug = %rule_set_slug))]
+#[instrument(skip(repository, template_env, quiz_session), fields(language = %language, rule_set_slug = %rule_set_slug, session_id = %quiz_session.session_id()))]
 pub async fn start_quiz_session(
     Path((language, rule_set_slug)): Path<(String, String)>,
     State(repository): State<RuleRepository>,
     State(template_env): State<Arc<Environment<'static>>>,
+    quiz_session: QuizSession,
 ) -> Result<Html<String>, AppError> {
-    let session_id = uuid::Uuid::now_v7().to_string();
+    let session_id = quiz_session.session_id().to_string();
 
-    // Redirect to first question with this session
+    // Get first question for this session (middleware handles cookies)
     get_quiz_question_for_session(
         repository,
         template_env,
@@ -125,21 +166,15 @@ pub async fn start_quiz_session(
     .await
 }
 
-/// Get a random quiz question (for form redirects)
-#[instrument(skip(repository, template_env, form_data), fields(language = %language, rule_set_slug = %rule_set_slug, session_id))]
+/// Get a random quiz question (for next question flow)
+#[instrument(skip(repository, template_env, quiz_session), fields(language = %language, rule_set_slug = %rule_set_slug, session_id = %quiz_session.session_id()))]
 pub async fn random_quiz_question(
     Path((language, rule_set_slug)): Path<(String, String)>,
     State(repository): State<RuleRepository>,
     State(template_env): State<Arc<Environment<'static>>>,
-    Form(form_data): Form<std::collections::HashMap<String, String>>,
+    quiz_session: QuizSession,
 ) -> Result<Html<String>, AppError> {
-    let session_id = form_data
-        .get("session_id")
-        .ok_or_else(|| AppError(color_eyre::eyre::eyre!("Session ID required")))?
-        .clone();
-
-    // Add session_id to the current span
-    Span::current().record("session_id", &session_id);
+    let session_id = quiz_session.session_id().to_string();
 
     get_quiz_question_for_session(
         repository,
@@ -260,15 +295,17 @@ async fn show_session_complete(
 }
 
 /// Submit quiz answer and show results  
-#[instrument(skip(repository, template_env, submission), fields(language = %language, rule_set_slug = %rule_set_slug, session_id, question_id, answer_id))]
+#[instrument(skip(repository, template_env, quiz_session, submission), fields(language = %language, rule_set_slug = %rule_set_slug, session_id = %quiz_session.session_id(), question_id, answer_id))]
 pub async fn submit_quiz_answer(
     Path((language, rule_set_slug)): Path<(String, String)>,
     State(repository): State<RuleRepository>,
     State(template_env): State<Arc<Environment<'static>>>,
+    quiz_session: QuizSession,
     Form(submission): Form<QuizSubmission>,
 ) -> Result<Html<String>, AppError> {
+    let session_id = quiz_session.session_id().to_string();
+
     // Record form data in span
-    Span::current().record("session_id", &submission.session_id);
     Span::current().record("question_id", &submission.question_id);
     Span::current().record("answer_id", &submission.answer_id);
 
@@ -289,7 +326,7 @@ pub async fn submit_quiz_answer(
 
     // Record the attempt
     let attempt = NewQuizAttempt::new(
-        submission.session_id.clone(),
+        session_id.clone(),
         submission.question_id.clone(),
         Some(submission.answer_id.clone()),
         Some(is_correct),
@@ -299,7 +336,7 @@ pub async fn submit_quiz_answer(
     repository.create_quiz_attempt(&attempt)?;
 
     // Get session statistics after recording the attempt
-    let db_stats = repository.get_session_statistics(&submission.session_id)?;
+    let db_stats = repository.get_session_statistics(&session_id)?;
     let session_stats = SessionStatsView {
         total_questions: db_stats.total_questions,
         correct_answers: db_stats.correct_answers,
@@ -307,14 +344,14 @@ pub async fn submit_quiz_answer(
         current_streak: db_stats.current_streak,
     };
 
-    // Get total available questions for this rule set using form data
+    // Get total available questions for this rule set using path parameter
     let rule_sets = repository.get_rule_sets()?;
     let rule_set = rule_sets
         .iter()
-        .find(|rs| rs.slug == submission.rule_set_slug)
+        .find(|rs| rs.slug == rule_set_slug)
         .ok_or_else(|| AppError(color_eyre::eyre::eyre!("Rule set not found")))?;
     let version = repository
-        .get_current_version(&submission.rule_set_slug)?
+        .get_current_version(&rule_set_slug)?
         .ok_or_else(|| AppError(color_eyre::eyre::eyre!("No current version found")))?;
 
     let all_questions = repository.get_quiz_questions(&rule_set.id, &version.id)?;
@@ -340,12 +377,12 @@ pub async fn submit_quiz_answer(
         selected_answer_id: submission.answer_id,
         is_correct,
         explanation: question.explanation.clone(),
-        session_id: submission.session_id,
+        session_id: session_id.clone(),
         session_stats,
         total_questions_available,
         questions_attempted,
-        language: submission.language,
-        rule_set_slug: submission.rule_set_slug,
+        language,
+        rule_set_slug,
     };
 
     let template = template_env.get_template("quiz_result.html")?;
@@ -355,14 +392,17 @@ pub async fn submit_quiz_answer(
 }
 
 /// Clear session data for privacy
-#[instrument(skip(repository), fields(session_id = %session_id))]
+#[instrument(skip(quiz_session, jar), fields(session_id = %quiz_session.session_id()))]
 pub async fn clear_session_data(
-    State(repository): State<RuleRepository>,
-    Path(session_id): Path<String>,
-) -> Result<axum::response::Redirect, AppError> {
-    // Delete all attempts for this session
-    repository.clear_session_attempts(&session_id)?;
+    Path((language, rule_set_slug)): Path<(String, String)>,
+    quiz_session: QuizSession,
+    jar: CookieJar,
+) -> Result<impl IntoResponse, AppError> {
+    let jar = jar.add(clear_quiz_session_cookie());
 
-    // Redirect back to quiz home
-    Ok(axum::response::Redirect::to("/quiz"))
+    // Redirect back to quiz home for this rule set
+    Ok((
+        jar,
+        axum::response::Redirect::to(&format!("/{language}/quiz/{rule_set_slug}",)),
+    ))
 }

@@ -529,6 +529,52 @@ struct SessionStatsView { ... }
 - **Rich Context**: Handlers get admin user info (username, admin_id) directly from token
 - **Future-Proof**: New admin endpoints automatically require authentication token
 
+### Quiz Session Management Refactoring
+**What worked well:**
+- Middleware approach for automatic cookie management eliminates boilerplate
+- `QuizSession` extractor provides consistent session access across all handlers
+- Cookie-based sessions much cleaner than hidden form inputs
+- Axum's `merge` vs deprecated `nest` for root-level routing
+- Context-aware UI dramatically improves user experience
+
+**What to improve:**
+- Initial attempt used deprecated `nest` at root level instead of `merge`
+- URL paths shouldn't contain session IDs when cookies handle session state
+- Template data should be minimal - don't pass data that handlers can provide
+
+**Technical debt:**
+- Eliminated: Hidden form inputs for session tracking across 3+ templates
+- Eliminated: Manual cookie handling in individual handlers
+- Eliminated: Session IDs in URL paths for security and cleanliness
+- Created: Clean middleware-based session management with automatic cookie handling
+
+**Key decisions:**
+- Used dedicated `src/quiz_session.rs` module for separation of concerns
+- Implemented middleware that automatically sets session cookies for quiz routes
+- `QuizSession` extractor never rejects - always provides a valid session
+- Context-aware quiz landing page shows progress and appropriate actions
+- Session clearing uses cookie-based session ID rather than URL parameters
+
+**Architecture Lessons:**
+- **Middleware Pattern**: Automatic cross-cutting concerns (like session cookies) should be handled by middleware, not individual handlers
+- **Extractor Pattern**: Custom extractors (like `AdminToken`, `QuizSession`) provide compile-time guarantees and clean handler signatures
+- **URL Design**: URLs should represent resources, not sensitive session state
+- **Context-Aware UX**: Applications should adapt UI based on user state rather than showing static interfaces
+- **Router Composition**: Use `merge` for combining routers, not deprecated `nest` at root level
+
+**Production Benefits:**
+- **Enhanced UX**: Users see "Continue Quiz (5/20)" instead of generic "Start Quiz"
+- **Better Security**: Session IDs not exposed in URLs or form data
+- **Improved Observability**: Session IDs automatically logged in all quiz operations via middleware
+- **Maintainability**: Centralized session logic reduces duplication and errors
+- **Developer Experience**: Clean handler signatures with automatic session context
+
+**User Experience Improvements:**
+- **Smart Landing Page**: Shows progress bar and appropriate action based on session state
+- **Session Continuity**: Progress preserved across browser sessions via HTTP-only cookies
+- **Clear Navigation**: "Start over" option available when needed
+- **Progress Visibility**: Users can see completion status at a glance
+
 ---
 
 *Last updated: 2025-08-08*

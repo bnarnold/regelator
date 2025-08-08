@@ -85,7 +85,7 @@
 
             <div style="text-align: center; margin-top: 2rem;">
                 <form action="/{{ language }}/quiz/{{ rule_set_slug }}/question" method="post" style="display: inline;">
-                    <input type="hidden" name="session_id" value="{{ session_id }}">
+                    <!-- Session ID now handled by middleware cookie -->
                     <button type="submit" class="contrast">Next Question</button>
                 </form>
                 <a href="/{{ language }}/quiz/{{ rule_set_slug }}" role="button" class="outline">Back to Quiz Home</a>

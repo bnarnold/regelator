@@ -3,13 +3,8 @@
 [security]
 session_duration_hours = 2
 
-[import]
-rule_set_name = "WFDF Rules of Ultimate 2025"
-rule_set_slug = "wfdf-2025"
-version_name = "2025 Edition"
-version_effective_date = "2025-01-01"
-
 [logging]
 level = "info"
 format = "json"
 enable_colors = false
+
