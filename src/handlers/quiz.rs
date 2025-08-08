@@ -1,8 +1,4 @@
-use crate::{
-    models::NewQuizAttempt,
-    repository::RuleRepository,
-    AppError,
-};
+use crate::{models::NewQuizAttempt, repository::RuleRepository, AppError};
 use axum::{
     extract::{Form, Path, State},
     response::Html,

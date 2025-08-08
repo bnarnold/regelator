@@ -7,9 +7,7 @@ use axum::{
 };
 use axum_extra::extract::{CookieJar, Form, Query};
 use minijinja::Environment;
-use regelator::auth::{
-    clear_admin_cookie, create_admin_cookie, AdminToken,
-};
+use regelator::auth::{clear_admin_cookie, create_admin_cookie, AdminToken};
 use regelator::config::Config;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -154,7 +152,6 @@ pub async fn admin_change_password_submit(
     admin: AdminToken,
     Form(form_data): Form<ChangePasswordForm>,
 ) -> Result<Html<String>, AppError> {
-
     // Validate form data
     if form_data.new_password != form_data.confirm_password {
         let context = ChangePasswordContext {
@@ -207,7 +204,11 @@ pub async fn admin_change_password_submit(
         .to_string();
 
     // Update password in database (with current hash verification for extra security)
-    repository.update_admin_password(&admin_record.id, &admin_record.password_hash, &new_password_hash)?;
+    repository.update_admin_password(
+        &admin_record.id,
+        &admin_record.password_hash,
+        &new_password_hash,
+    )?;
 
     // Show success message
     let context = ChangePasswordContext {
@@ -276,7 +277,6 @@ pub async fn questions_list(
     _admin: AdminToken,
     Query(filters): Query<QuestionFilters>,
 ) -> Result<Html<String>, AppError> {
-
     // Parse status filter
     let status_filter = filters
         .status
@@ -319,7 +319,6 @@ pub async fn new_question_form(
     State(templates): State<Arc<Environment<'static>>>,
     _admin: AdminToken,
 ) -> Result<Html<String>, AppError> {
-
     let context = QuestionFormContext {
         question: None,
         answers: None,
@@ -337,7 +336,6 @@ pub async fn create_question(
     _admin: AdminToken,
     Form(form_data): Form<QuestionForm>,
 ) -> Result<Redirect, AppError> {
-
     // Basic validation
     let mut errors = Vec::new();
 
@@ -411,7 +409,6 @@ pub async fn edit_question_form(
     _admin: AdminToken,
     Path(question_id): Path<String>,
 ) -> Result<Html<String>, AppError> {
-
     // Get question with answers
     let (question, answers) = repository
         .get_question_with_answers(&question_id)?
@@ -435,16 +432,12 @@ pub async fn preview_question(
     _admin: AdminToken,
     Path(question_id): Path<String>,
 ) -> Result<Html<String>, AppError> {
-
     // Get question with answers
     let (question, answers) = repository
         .get_question_with_answers(&question_id)?
         .ok_or_else(|| AppError(eyre::eyre!("Question not found")))?;
 
-    let context = QuestionPreviewContext {
-        question,
-        answers,
-    };
+    let context = QuestionPreviewContext { question, answers };
 
     let tmpl = templates.get_template("admin_question_preview.html")?;
     let rendered = tmpl.render(context)?;
@@ -458,7 +451,6 @@ pub async fn update_question(
     Path(question_id): Path<String>,
     Form(form_data): Form<QuestionForm>,
 ) -> Result<Redirect, AppError> {
-
     // Handle delete action
     if form_data.action.as_deref() == Some("delete") {
         repository.delete_question(&question_id)?;
@@ -504,4 +496,3 @@ pub async fn update_question(
 
     Ok(Redirect::to("/admin/questions"))
 }
-

@@ -40,9 +40,9 @@ impl Config {
     pub fn load() -> Result<Self, ConfigError> {
         // Load .env file if it exists (ignore errors if it doesn't exist)
         let _ = dotenvy::dotenv();
-        
+
         let environment = env::var("REGELATOR_ENV").unwrap_or_else(|_| "local".to_string());
-        
+
         let config = ConfigBuilder::builder()
             // Load shared configuration
             .add_source(File::with_name("config/shared").required(false))
@@ -51,33 +51,37 @@ impl Config {
             // Override with environment variables prefixed with REGELATOR__
             .add_source(Environment::with_prefix("REGELATOR").separator("__"))
             .build()?;
-        
+
         let mut loaded_config: Config = config.try_deserialize()?;
-        
+
         // Validate configuration
         loaded_config.validate()?;
-        
+
         Ok(loaded_config)
     }
-    
+
     /// Validate the configuration
     fn validate(&self) -> Result<(), ConfigError> {
         if self.security.jwt_secret.is_empty() {
-            return Err(ConfigError::Message("JWT secret cannot be empty".to_string()));
+            return Err(ConfigError::Message(
+                "JWT secret cannot be empty".to_string(),
+            ));
         }
-        
+
         if self.security.jwt_secret.len() < 32 {
-            return Err(ConfigError::Message("JWT secret must be at least 32 characters long".to_string()));
+            return Err(ConfigError::Message(
+                "JWT secret must be at least 32 characters long".to_string(),
+            ));
         }
-        
+
         Ok(())
     }
-    
+
     /// Get the server bind address
     pub fn bind_address(&self) -> String {
         format!("{}:{}", self.server.host, self.server.port)
     }
-    
+
     /// Get session duration as chrono::Duration
     pub fn session_duration(&self) -> chrono::Duration {
         chrono::Duration::hours(self.security.session_duration_hours as i64)
@@ -87,7 +91,7 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_bind_address() {
         let config = Config {
@@ -109,10 +113,10 @@ mod tests {
                 version_effective_date: "2025-01-01".to_string(),
             },
         };
-        
+
         assert_eq!(config.bind_address(), "0.0.0.0:3000");
     }
-    
+
     #[test]
     fn test_session_duration() {
         let config = Config {
@@ -134,7 +138,7 @@ mod tests {
                 version_effective_date: "2025-01-01".to_string(),
             },
         };
-        
+
         assert_eq!(config.session_duration(), chrono::Duration::hours(4));
     }
 }

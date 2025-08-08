@@ -116,8 +116,9 @@ struct AppState {
 
 impl AppState {
     fn new() -> Result<Self, eyre::Error> {
-        let config = Config::load().map_err(|e| eyre::eyre!("Failed to load configuration: {}", e))?;
-        
+        let config =
+            Config::load().map_err(|e| eyre::eyre!("Failed to load configuration: {}", e))?;
+
         let mut env = Environment::new();
         env.set_loader(minijinja::path_loader("src/templates"));
 
@@ -214,16 +215,37 @@ async fn main() {
         .route("/admin/login", get(handlers::admin_login_form))
         .route("/admin/login", post(handlers::admin_login_submit))
         .route("/admin/dashboard", get(handlers::admin_dashboard))
-        .route("/admin/change-password", get(handlers::admin_change_password_form))
-        .route("/admin/change-password", post(handlers::admin_change_password_submit))
+        .route(
+            "/admin/change-password",
+            get(handlers::admin_change_password_form),
+        )
+        .route(
+            "/admin/change-password",
+            post(handlers::admin_change_password_submit),
+        )
         .route("/admin/logout", get(handlers::admin_logout))
         // Admin question management routes
         .route("/admin/questions", get(handlers::admin::questions_list))
-        .route("/admin/questions/new", get(handlers::admin::new_question_form))
-        .route("/admin/questions/new", post(handlers::admin::create_question))
-        .route("/admin/questions/{question_id}/edit", get(handlers::admin::edit_question_form))
-        .route("/admin/questions/{question_id}/edit", post(handlers::admin::update_question))
-        .route("/admin/questions/{question_id}/preview", get(handlers::admin::preview_question))
+        .route(
+            "/admin/questions/new",
+            get(handlers::admin::new_question_form),
+        )
+        .route(
+            "/admin/questions/new",
+            post(handlers::admin::create_question),
+        )
+        .route(
+            "/admin/questions/{question_id}/edit",
+            get(handlers::admin::edit_question_form),
+        )
+        .route(
+            "/admin/questions/{question_id}/edit",
+            post(handlers::admin::update_question),
+        )
+        .route(
+            "/admin/questions/{question_id}/preview",
+            get(handlers::admin::preview_question),
+        )
         .nest_service(
             "/static",
             SetResponseHeaderLayer::if_not_present(
@@ -241,7 +263,7 @@ async fn main() {
 
     let actual_address = listener.local_addr().expect("Get local address");
     println!("Server listening on {}", actual_address);
-    
+
     axum::serve(listener, app).await.expect("Serve app");
 }
 

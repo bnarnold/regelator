@@ -87,7 +87,7 @@ fn read_definitions_from_stdin() -> Result<Vec<DefinitionData>> {
 fn import_definitions(definitions: Vec<DefinitionData>) -> Result<()> {
     // Load configuration
     let config = Config::load().wrap_err("Failed to load configuration")?;
-    
+
     // Database setup
     let manager = ConnectionManager::<SqliteConnection>::new(&config.database.url);
     let pool = Pool::builder()
@@ -305,4 +305,3 @@ mod tests {
         );
     }
 }
-

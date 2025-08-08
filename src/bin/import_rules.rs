@@ -17,7 +17,6 @@ struct RuleData {
     content: String,
 }
 
-
 fn parse_rule_number(number: &str) -> Vec<u32> {
     number.split('.').map(|s| s.parse().unwrap_or(0)).collect()
 }
@@ -45,23 +44,24 @@ fn process_number_references(
     number_to_slug: &HashMap<String, String>, // rule number -> slug
 ) -> (String, Vec<String>) {
     // Match rule references: numbers with dots OR numbers prefixed by "Section"
-    let reference_pattern = Regex::new(r"\b(?:Section\s+(\d+(?:\.\d+)*)|(\d+\.\d+(?:\.\d+)*))\b").unwrap();
+    let reference_pattern =
+        Regex::new(r"\b(?:Section\s+(\d+(?:\.\d+)*)|(\d+\.\d+(?:\.\d+)*))\b").unwrap();
     let mut processed_content = content.to_string();
     let mut broken_references = Vec::new();
-    
+
     // Find all rule reference patterns and collect replacements
     let mut replacements = Vec::new();
-    
+
     for mat in reference_pattern.find_iter(content) {
         let full_match = mat.as_str();
         let captures = reference_pattern.captures(full_match).unwrap();
-        
+
         let rule_number = if let Some(section_num) = captures.get(1) {
             section_num.as_str() // "Section 16" -> "16"
         } else {
             captures.get(2).unwrap().as_str() // "16.3" -> "16.3"
         };
-        
+
         if let Some(slug) = number_to_slug.get(rule_number) {
             // Replace with markdown link - both "Section X" and "X.Y" use rule: scheme
             let markdown_link = format!("[{}](rule:{})", full_match, slug);
@@ -71,12 +71,12 @@ fn process_number_references(
             broken_references.push(rule_number.to_string());
         }
     }
-    
+
     // Apply replacements from end to start to preserve indices
     for (start, end, replacement) in replacements.into_iter().rev() {
         processed_content.replace_range(start..end, &replacement);
     }
-    
+
     (processed_content, broken_references)
 }
 
@@ -112,7 +112,7 @@ fn read_rules_from_stdin() -> Result<Vec<RuleData>> {
 fn import_rules(rule_data: Vec<RuleData>) -> Result<()> {
     // Load configuration
     let config = Config::load().wrap_err("Failed to load configuration")?;
-    
+
     // Database setup
     let manager = ConnectionManager::<SqliteConnection>::new(&config.database.url);
     let pool = Pool::builder()
@@ -135,8 +135,9 @@ fn import_rules(rule_data: Vec<RuleData>) -> Result<()> {
 
     // Create version
     let version_id = Uuid::now_v7().to_string();
-    let effective_from = chrono::NaiveDate::parse_from_str(&config.import.version_effective_date, "%Y-%m-%d")
-        .wrap_err("Invalid version_effective_date format in config (expected YYYY-MM-DD)")?;
+    let effective_from =
+        chrono::NaiveDate::parse_from_str(&config.import.version_effective_date, "%Y-%m-%d")
+            .wrap_err("Invalid version_effective_date format in config (expected YYYY-MM-DD)")?;
     let version = NewVersion {
         id: version_id.clone(),
         rule_set_id: rule_set_id.clone(),
@@ -161,12 +162,16 @@ fn import_rules(rule_data: Vec<RuleData>) -> Result<()> {
         .into_iter()
         .map(|mut rule| {
             // Process rule content to replace number references with {{slug}} templates
-            let (processed_content, broken_refs) = process_number_references(&rule.content, &number_to_slug);
-            
+            let (processed_content, broken_refs) =
+                process_number_references(&rule.content, &number_to_slug);
+
             if !broken_refs.is_empty() {
-                println!("Warning: Rule {} contains potential broken references: {:?}", rule.number, broken_refs);
+                println!(
+                    "Warning: Rule {} contains potential broken references: {:?}",
+                    rule.number, broken_refs
+                );
             }
-            
+
             rule.content = processed_content;
             rule
         })
@@ -200,7 +205,10 @@ fn import_rules(rule_data: Vec<RuleData>) -> Result<()> {
             number: rule_data.number.clone(),
         };
 
-        println!("Creating rule {} ({}): {}", rule_data.number, rule_data.slug, rule_data.content);
+        println!(
+            "Creating rule {} ({}): {}",
+            rule_data.number, rule_data.slug, rule_data.content
+        );
         repo.create_rule(rule)?;
 
         // Store rule ID for parent lookup
@@ -243,11 +251,14 @@ mod tests {
         let mut number_to_slug = HashMap::new();
         number_to_slug.insert("16.3".to_string(), "handling-contested-calls".to_string());
         number_to_slug.insert("1".to_string(), "spirit-of-the-game".to_string());
-        number_to_slug.insert("11.8".to_string(), "observers-and-rules-advisors".to_string());
-        
+        number_to_slug.insert(
+            "11.8".to_string(),
+            "observers-and-rules-advisors".to_string(),
+        );
+
         let content = "If the opposition does not gain possession, apply 16.3 according to Section 1 and Section 11.8.";
         let (processed, broken_refs) = process_number_references(content, &number_to_slug);
-        
+
         let expected = "If the opposition does not gain possession, apply [16.3](rule:handling-contested-calls) according to [Section 1](rule:spirit-of-the-game) and [Section 11.8](rule:observers-and-rules-advisors).";
         assert_eq!(processed, expected);
         assert!(broken_refs.is_empty());
@@ -257,10 +268,10 @@ mod tests {
     fn test_process_number_references_ignores_parenthetical() {
         let mut number_to_slug = HashMap::new();
         number_to_slug.insert("16.3".to_string(), "handling-contested-calls".to_string());
-        
+
         let content = "Add two (2) seconds to the stall count. Apply 16.3 if needed. This results in ten (10) seconds.";
         let (processed, broken_refs) = process_number_references(content, &number_to_slug);
-        
+
         let expected = "Add two (2) seconds to the stall count. Apply [16.3](rule:handling-contested-calls) if needed. This results in ten (10) seconds.";
         assert_eq!(processed, expected);
         assert!(broken_refs.is_empty());
@@ -270,10 +281,10 @@ mod tests {
     fn test_process_number_references_with_broken_refs() {
         let mut number_to_slug = HashMap::new();
         number_to_slug.insert("16.3".to_string(), "handling-contested-calls".to_string());
-        
+
         let content = "Apply 16.3 and also 99.9 here.";
         let (processed, broken_refs) = process_number_references(content, &number_to_slug);
-        
+
         let expected = "Apply [16.3](rule:handling-contested-calls) and also 99.9 here.";
         assert_eq!(processed, expected);
         assert_eq!(broken_refs, vec!["99.9"]);

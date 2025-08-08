@@ -209,11 +209,7 @@ impl NewRuleContent {
 }
 
 impl NewGlossaryTerm {
-    pub fn new(
-        rule_set_id: String,
-        version_id: String,
-        slug: String,
-    ) -> Self {
+    pub fn new(rule_set_id: String, version_id: String, slug: String) -> Self {
         Self {
             id: Uuid::now_v7().to_string(),
             rule_set_id,

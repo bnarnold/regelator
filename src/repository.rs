@@ -117,10 +117,9 @@ impl RuleRepository {
 
         let results = rules_dsl::rules
             .inner_join(
-                content_dsl::rule_content.on(
-                    rules_dsl::id.eq(content_dsl::rule_id)
-                        .and(content_dsl::language.eq(language_param))
-                )
+                content_dsl::rule_content.on(rules_dsl::id
+                    .eq(content_dsl::rule_id)
+                    .and(content_dsl::language.eq(language_param))),
             )
             .filter(rules_dsl::version_id.eq(version_id_param))
             .select((Rule::as_select(), RuleContent::as_select()))
@@ -210,7 +209,6 @@ impl RuleRepository {
 
         Ok(result)
     }
-
 
     /// Get child rules for a parent rule
     pub fn get_child_rules(&self, parent_id: &str) -> Result<Vec<Rule>> {
@@ -352,7 +350,10 @@ impl RuleRepository {
     }
 
     /// Create glossary content for a term
-    pub fn create_glossary_content(&self, new_content: NewGlossaryContent) -> Result<GlossaryContent> {
+    pub fn create_glossary_content(
+        &self,
+        new_content: NewGlossaryContent,
+    ) -> Result<GlossaryContent> {
         use crate::schema::glossary_content::dsl::*;
 
         let mut conn = self
@@ -376,9 +377,13 @@ impl RuleRepository {
     }
 
     /// Get all glossary terms for a rule set and version
-    pub fn get_glossary_terms(&self, rule_set_id_param: &str, version_id_param: &str) -> Result<Vec<(GlossaryTerm, GlossaryContent)>> {
-        use crate::schema::glossary_terms::dsl as terms_dsl;
+    pub fn get_glossary_terms(
+        &self,
+        rule_set_id_param: &str,
+        version_id_param: &str,
+    ) -> Result<Vec<(GlossaryTerm, GlossaryContent)>> {
         use crate::schema::glossary_content::dsl as content_dsl;
+        use crate::schema::glossary_terms::dsl as terms_dsl;
 
         let mut conn = self
             .pool
@@ -398,9 +403,14 @@ impl RuleRepository {
     }
 
     /// Find a glossary term by slug
-    pub fn find_glossary_term_by_slug(&self, rule_set_id_param: &str, version_id_param: &str, slug_param: &str) -> Result<Option<(GlossaryTerm, GlossaryContent)>> {
-        use crate::schema::glossary_terms::dsl as terms_dsl;
+    pub fn find_glossary_term_by_slug(
+        &self,
+        rule_set_id_param: &str,
+        version_id_param: &str,
+        slug_param: &str,
+    ) -> Result<Option<(GlossaryTerm, GlossaryContent)>> {
         use crate::schema::glossary_content::dsl as content_dsl;
+        use crate::schema::glossary_terms::dsl as terms_dsl;
 
         let mut conn = self
             .pool
@@ -424,7 +434,10 @@ impl RuleRepository {
     // Quiz repository methods
 
     /// Create a complete quiz question with answers and rule links in a transaction
-    pub fn create_quiz_question_complete(&self, question_data: &crate::models::QuizQuestionData) -> Result<QuizQuestion> {
+    pub fn create_quiz_question_complete(
+        &self,
+        question_data: &crate::models::QuizQuestionData,
+    ) -> Result<QuizQuestion> {
         use crate::schema::quiz_answers::dsl as qa_dsl;
         use crate::schema::quiz_question_rules::dsl as qqr_dsl;
         use crate::schema::quiz_questions::dsl as qq_dsl;
@@ -471,7 +484,11 @@ impl RuleRepository {
     }
 
     /// Get quiz questions for a rule set and version
-    pub fn get_quiz_questions(&self, rule_set_id_param: &str, version_id_param: &str) -> Result<Vec<QuizQuestion>> {
+    pub fn get_quiz_questions(
+        &self,
+        rule_set_id_param: &str,
+        version_id_param: &str,
+    ) -> Result<Vec<QuizQuestion>> {
         use crate::schema::quiz_questions::dsl::*;
 
         let mut conn = self
@@ -621,7 +638,10 @@ impl RuleRepository {
             .wrap_err("Failed to load session attempts")?;
 
         let total_questions = attempts.len();
-        let correct_answers = attempts.iter().filter(|a| a.is_correct == Some(true)).count();
+        let correct_answers = attempts
+            .iter()
+            .filter(|a| a.is_correct == Some(true))
+            .count();
         let accuracy_percentage = if total_questions > 0 {
             (correct_answers as f32 / total_questions as f32 * 100.0).round() as u32
         } else {
@@ -647,7 +667,10 @@ impl RuleRepository {
     }
 
     /// Get questions that were answered incorrectly in this session
-    pub fn get_session_missed_questions(&self, session_id_param: &str) -> Result<Vec<(QuizQuestion, QuizAttempt)>> {
+    pub fn get_session_missed_questions(
+        &self,
+        session_id_param: &str,
+    ) -> Result<Vec<(QuizQuestion, QuizAttempt)>> {
         use crate::schema::quiz_attempts::dsl as qa_dsl;
         use crate::schema::quiz_questions::dsl as qq_dsl;
 
@@ -684,7 +707,7 @@ impl RuleRepository {
     }
 
     // Admin authentication methods
-    
+
     /// Find admin by username
     pub fn find_admin_by_username(&self, username_param: &str) -> Result<Option<Admin>> {
         use crate::schema::admins::dsl::*;
@@ -723,7 +746,12 @@ impl RuleRepository {
     }
 
     /// Update admin password hash (requires current password hash for verification)
-    pub fn update_admin_password(&self, admin_id: &str, current_password_hash: &str, new_password_hash: &str) -> Result<()> {
+    pub fn update_admin_password(
+        &self,
+        admin_id: &str,
+        current_password_hash: &str,
+        new_password_hash: &str,
+    ) -> Result<()> {
         use crate::schema::admins::dsl::*;
 
         let mut conn = self
@@ -732,13 +760,17 @@ impl RuleRepository {
             .wrap_err("Failed to get database connection")?;
 
         // Update only if the current password hash matches (prevents unauthorized changes)
-        let rows_affected = diesel::update(admins.filter(id.eq(admin_id).and(password_hash.eq(current_password_hash))))
-            .set(password_hash.eq(new_password_hash))
-            .execute(&mut conn)
-            .wrap_err("Failed to update admin password")?;
+        let rows_affected = diesel::update(
+            admins.filter(id.eq(admin_id).and(password_hash.eq(current_password_hash))),
+        )
+        .set(password_hash.eq(new_password_hash))
+        .execute(&mut conn)
+        .wrap_err("Failed to update admin password")?;
 
         if rows_affected == 0 {
-            return Err(eyre::eyre!("Password update failed - current password incorrect or admin not found"));
+            return Err(eyre::eyre!(
+                "Password update failed - current password incorrect or admin not found"
+            ));
         }
 
         Ok(())
@@ -764,7 +796,7 @@ impl RuleRepository {
 
         let mut query = quiz_questions.into_boxed();
 
-        // Apply status filter  
+        // Apply status filter
         if let Some(status_val) = status_filter {
             query = query.filter(status.eq(status_val));
         }
@@ -778,8 +810,9 @@ impl RuleRepository {
         if let Some(search) = search_query {
             let search_pattern = format!("%{}%", search);
             query = query.filter(
-                question_text.like(search_pattern.clone())
-                    .or(explanation.like(search_pattern))
+                question_text
+                    .like(search_pattern.clone())
+                    .or(explanation.like(search_pattern)),
             );
         }
 
@@ -800,9 +833,17 @@ impl RuleRepository {
     }
 
     /// Get question by ID with answers
-    pub fn get_question_with_answers(&self, question_id: &str) -> Result<Option<(crate::models::quiz::QuizQuestion, Vec<crate::models::quiz::QuizAnswer>)>> {
-        use crate::schema::quiz_questions::dsl as q_dsl;
+    pub fn get_question_with_answers(
+        &self,
+        question_id: &str,
+    ) -> Result<
+        Option<(
+            crate::models::quiz::QuizQuestion,
+            Vec<crate::models::quiz::QuizAnswer>,
+        )>,
+    > {
         use crate::schema::quiz_answers::dsl as a_dsl;
+        use crate::schema::quiz_questions::dsl as q_dsl;
 
         let mut conn = self
             .pool
@@ -838,8 +879,8 @@ impl RuleRepository {
         new_question: crate::models::quiz::NewQuizQuestion,
         new_answers: Vec<crate::models::quiz::NewQuizAnswer>,
     ) -> Result<crate::models::quiz::QuizQuestion> {
-        use crate::schema::quiz_questions::dsl as q_dsl;
         use crate::schema::quiz_answers::dsl as a_dsl;
+        use crate::schema::quiz_questions::dsl as q_dsl;
 
         let mut conn = self
             .pool
@@ -903,7 +944,11 @@ impl RuleRepository {
     }
 
     /// Update question status
-    pub fn update_question_status(&self, question_id: &str, new_status: crate::models::quiz::QuestionStatus) -> Result<()> {
+    pub fn update_question_status(
+        &self,
+        question_id: &str,
+        new_status: crate::models::quiz::QuestionStatus,
+    ) -> Result<()> {
         use crate::schema::quiz_questions::dsl::*;
 
         let mut conn = self
@@ -921,8 +966,8 @@ impl RuleRepository {
 
     /// Delete question and its answers
     pub fn delete_question(&self, question_id: &str) -> Result<()> {
-        use crate::schema::quiz_questions::dsl as q_dsl;
         use crate::schema::quiz_answers::dsl as a_dsl;
+        use crate::schema::quiz_questions::dsl as q_dsl;
 
         let mut conn = self
             .pool
