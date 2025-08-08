@@ -9,8 +9,6 @@ use regelator::config::{Config, ImportConfig};
 use regelator::models::*;
 use regelator::repository::RuleRepository;
 
-type DbPool = Pool<ConnectionManager<SqliteConnection>>;
-
 #[derive(Debug)]
 struct QuizQuestionImport {
     question_text: String,

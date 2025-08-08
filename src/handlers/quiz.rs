@@ -254,7 +254,7 @@ async fn show_session_complete(
 
 /// Submit quiz answer and show results
 pub async fn submit_quiz_answer(
-    Path((language, rule_set_slug)): Path<(String, String)>,
+    Path((_language, _rule_set_slug)): Path<(String, String)>,
     State(repository): State<RuleRepository>,
     State(template_env): State<Arc<Environment<'static>>>,
     Form(submission): Form<QuizSubmission>,

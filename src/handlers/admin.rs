@@ -227,7 +227,6 @@ pub struct QuestionFilters {
     pub search: Option<String>,
     pub status: Option<String>,
     pub difficulty: Option<String>,
-    pub page: Option<i64>,
 }
 
 #[derive(Deserialize)]
@@ -238,8 +237,8 @@ pub struct QuestionForm {
     pub explanation: String,
     pub answers: Vec<String>,
     pub correct_answer: usize,
-    pub rule_references: Option<String>,
     pub action: Option<String>,
+    // TODO: there is an input for rule references, we don't store these in the database yet though
 }
 
 #[derive(Serialize)]

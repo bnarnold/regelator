@@ -1,3 +1,8 @@
+#![allow(
+    dead_code,
+    reason = "Models should match database schema if fields are not used yet"
+)]
+
 pub mod admin;
 pub mod core;
 pub mod quiz;

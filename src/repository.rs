@@ -1,3 +1,8 @@
+#![allow(
+    dead_code,
+    reason = "Some CRUD methods were generated without immediate use"
+)]
+
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::sqlite::SqliteConnection;
@@ -381,6 +386,7 @@ impl RuleRepository {
         &self,
         rule_set_id_param: &str,
         version_id_param: &str,
+        language_param: &str,
     ) -> Result<Vec<(GlossaryTerm, GlossaryContent)>> {
         use crate::schema::glossary_content::dsl as content_dsl;
         use crate::schema::glossary_terms::dsl as terms_dsl;
@@ -394,7 +400,7 @@ impl RuleRepository {
             .inner_join(content_dsl::glossary_content.on(content_dsl::term_id.eq(terms_dsl::id)))
             .filter(terms_dsl::rule_set_id.eq(rule_set_id_param))
             .filter(terms_dsl::version_id.eq(version_id_param))
-            .filter(content_dsl::language.eq("en"))
+            .filter(content_dsl::language.eq(language_param))
             .select((GlossaryTerm::as_select(), GlossaryContent::as_select()))
             .load(&mut conn)
             .wrap_err("Failed to load glossary terms")?;

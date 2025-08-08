@@ -48,13 +48,6 @@ pub struct RuleNode {
 }
 
 #[derive(Serialize)]
-struct RuleData {
-    number: String,
-    slug: String,
-    content: String,
-}
-
-#[derive(Serialize)]
 struct RuleDetailContext {
     language: String,
     rule_set_slug: String,
@@ -124,17 +117,17 @@ pub async fn list_rules(
     // Get rule set info to build definition slug mapping
     let rule_sets = repo.get_rule_sets()?;
     let rule_set = rule_sets
-        .iter()
+        .into_iter()
         .find(|rs| rs.slug == rule_set_slug)
         .ok_or_else(|| eyre::eyre!("Rule set '{}' not found", rule_set_slug))?;
 
     // Build hierarchical tree structure
-    let rule_tree = build_rule_tree(rules_with_content, &language, &rule_set_slug);
+    let rule_tree = build_rule_tree(rules_with_content);
 
     let context = RulesListContext {
         language: language.clone(),
         rule_set_slug: rule_set_slug.clone(),
-        rule_set_name: rule_set_slug.clone(), // TODO: Get actual name
+        rule_set_name: rule_set.name,
         version_name: version.version_name,
         rule_tree,
     };
@@ -182,19 +175,6 @@ pub async fn show_rule(
     // Get all rules with content for this version and build the full tree
     let all_rules_with_content = repo.get_rules_with_content_for_version(&version.id, &language)?;
 
-    // Build slug -> number mapping for processing rule content
-    let slug_to_number: HashMap<String, String> = all_rules_with_content
-        .iter()
-        .map(|(rule, _)| (rule.slug.clone(), rule.number.clone()))
-        .collect();
-
-    // Get rule set info to build definition slug mapping
-    let rule_sets = repo.get_rule_sets()?;
-    let rule_set = rule_sets
-        .iter()
-        .find(|rs| rs.slug == rule_set_slug)
-        .ok_or_else(|| eyre::eyre!("Rule set '{}' not found", rule_set_slug))?;
-
     // Get parent rule if it exists
     let parent_rule = if let Some(parent_id) = &rule.parent_rule_id {
         let parent = repo.get_rule_by_id(parent_id)?;
@@ -216,7 +196,7 @@ pub async fn show_rule(
         None
     };
 
-    let full_tree = build_rule_tree(all_rules_with_content, &language, &rule_set_slug);
+    let full_tree = build_rule_tree(all_rules_with_content);
 
     // Find the current rule in the tree and get its children
     let child_rules = find_rule_in_tree(&full_tree, &rule.slug)
@@ -276,7 +256,7 @@ pub async fn definitions_page(
         .ok_or_else(|| eyre::eyre!("No current version found"))?;
 
     // Get all glossary terms for this rule set and version
-    let glossary_terms = repository.get_glossary_terms(&rule_set.id, &version.id)?;
+    let glossary_terms = repository.get_glossary_terms(&rule_set.id, &version.id, &language)?;
 
     // Convert to template data, sorting alphabetically by term
     let mut definitions: Vec<DefinitionItem> = glossary_terms
@@ -333,20 +313,10 @@ pub fn sort_rule_nodes_recursively(nodes: &mut Vec<RuleNode>) {
 }
 
 /// Build hierarchical tree structure from rules with content
-pub fn build_rule_tree(
-    rules_with_content: Vec<(Rule, RuleContent)>,
-    language: &str,
-    rule_set_slug: &str,
-) -> Vec<RuleNode> {
+pub fn build_rule_tree(rules_with_content: Vec<(Rule, RuleContent)>) -> Vec<RuleNode> {
     let mut nodes: HashMap<String, RuleNode> = HashMap::new();
     let mut children_map: HashMap<String, Vec<String>> = HashMap::new();
     let mut root_ids: Vec<String> = Vec::new();
-
-    // Build slug -> rule number mapping for reference processing
-    let slug_to_number: HashMap<String, String> = rules_with_content
-        .iter()
-        .map(|(rule, _)| (rule.slug.clone(), rule.number.clone()))
-        .collect();
 
     // Create all nodes and build children mapping
     for (rule, content) in &rules_with_content {
@@ -458,7 +428,7 @@ mod tests {
             create_test_rule_with_content("rule_1", "1", "rule-1", "Rule 1 content", None),
         ];
 
-        let tree = build_rule_tree(rules, "en", "test-rules");
+        let tree = build_rule_tree(rules);
 
         assert_eq!(tree.len(), 3);
         assert_eq!(tree[0].number, "1");
@@ -496,7 +466,7 @@ mod tests {
             ),
         ];
 
-        let tree = build_rule_tree(rules, "en", "test-rules");
+        let tree = build_rule_tree(rules);
 
         assert_eq!(tree.len(), 1);
         assert_eq!(tree[0].number, "1");
@@ -546,7 +516,7 @@ mod tests {
             ),
         ];
 
-        let tree = build_rule_tree(rules, "en", "test-rules");
+        let tree = build_rule_tree(rules);
 
         assert_eq!(tree.len(), 1);
         assert_eq!(tree[0].number, "1");
@@ -586,7 +556,7 @@ mod tests {
             create_test_rule_with_content("rule_1", "1", "rule-1", "Rule 1 content", None),
         ];
 
-        let tree = build_rule_tree(rules, "en", "test-rules");
+        let tree = build_rule_tree(rules);
 
         assert_eq!(tree.len(), 3);
 
