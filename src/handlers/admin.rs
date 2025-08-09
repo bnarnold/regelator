@@ -613,3 +613,62 @@ pub async fn admin_stats_dashboard(
 
     Ok(Html(rendered))
 }
+
+/// Show detailed question statistics
+#[derive(Serialize)]
+struct QuestionDetailStatsContext {
+    pub question_detail_stats: crate::models::quiz::QuestionDetailStats,
+    pub current_filter: String,
+}
+
+#[instrument(skip(templates, repository, _admin), fields(admin_username = %_admin.username(), question_id = %question_id))]
+pub async fn admin_question_detail_stats(
+    State(templates): State<Arc<Environment<'static>>>,
+    State(repository): State<RuleRepository>,
+    _admin: AdminToken,
+    Path(question_id): Path<String>,
+    Query(params): Query<StatsQueryParams>,
+) -> Result<Html<String>, AppError> {
+    // Determine date range based on filter (same logic as main stats dashboard)
+    let (start_date, end_date, filter_name) = match params.filter.as_deref() {
+        Some("7days") => {
+            let end = Utc::now();
+            let start = end - Duration::days(7);
+            (
+                Some(start.format("%Y-%m-%d").to_string()),
+                Some(end.format("%Y-%m-%d").to_string()),
+                "Last 7 Days".to_string(),
+            )
+        }
+        Some("30days") => {
+            let end = Utc::now();
+            let start = end - Duration::days(30);
+            (
+                Some(start.format("%Y-%m-%d").to_string()),
+                Some(end.format("%Y-%m-%d").to_string()),
+                "Last 30 Days".to_string(),
+            )
+        }
+        Some("custom") => (
+            params.start_date.clone(),
+            params.end_date.clone(),
+            "Custom Range".to_string(),
+        ),
+        _ => (None, None, "All Time".to_string()),
+    };
+
+    // Get detailed question statistics
+    let question_detail_stats = repository
+        .get_question_detail_statistics(&question_id, start_date.as_deref(), end_date.as_deref())?
+        .ok_or_else(|| AppError(color_eyre::eyre::eyre!("Question not found")))?;
+
+    let context = QuestionDetailStatsContext {
+        question_detail_stats,
+        current_filter: filter_name,
+    };
+
+    let template = templates.get_template("admin_question_detail_stats.html")?;
+    let rendered = template.render(&context)?;
+
+    Ok(Html(rendered))
+}

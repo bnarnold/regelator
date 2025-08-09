@@ -1195,4 +1195,192 @@ impl RuleRepository {
             date_range_end: end_date.map(|s| s.to_string()),
         })
     }
+
+    /// Get detailed statistics for a specific question
+    pub fn get_question_detail_statistics(
+        &self,
+        question_id: &str,
+        start_date: Option<&str>,
+        end_date: Option<&str>,
+    ) -> Result<Option<crate::models::quiz::QuestionDetailStats>> {
+        use crate::schema::quiz_answers::dsl as qa_dsl;
+        use crate::schema::quiz_attempts::dsl as qat_dsl;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        // Get question with answers
+        let question_with_answers = self.get_question_with_answers(question_id)?;
+        let (question, answers) = match question_with_answers {
+            Some((q, a)) => (q, a),
+            None => return Ok(None),
+        };
+
+        // Build attempts query with optional date filtering
+        let mut attempts_query = qat_dsl::quiz_attempts
+            .filter(qat_dsl::question_id.eq(question_id))
+            .into_boxed();
+
+        if let Some(start) = start_date {
+            attempts_query = attempts_query.filter(qat_dsl::created_at.ge(start));
+        }
+        if let Some(end) = end_date {
+            attempts_query = attempts_query.filter(qat_dsl::created_at.le(end));
+        }
+
+        // Get all attempts for this question
+        let attempts = attempts_query
+            .select(QuizAttempt::as_select())
+            .load(&mut conn)
+            .wrap_err("Failed to load question attempts")?;
+
+        let total_attempts = attempts.len();
+        let correct_attempts = attempts
+            .iter()
+            .filter(|a| a.is_correct == Some(true))
+            .count();
+
+        let success_rate = if total_attempts > 0 {
+            (correct_attempts as f64 / total_attempts as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        // Get answer distribution
+        let answer_distribution =
+            self.get_answer_distribution(question_id, start_date, end_date)?;
+
+        // Find most common wrong answer
+        let most_common_wrong_answer = answer_distribution
+            .iter()
+            .filter(|ad| !ad.is_correct && ad.selection_count > 0)
+            .max_by(|a, b| a.selection_count.cmp(&b.selection_count))
+            .map(|ad| ad.answer_text.clone());
+
+        // Build a new query for recent attempts (last 20)
+        let mut recent_attempts_query = qat_dsl::quiz_attempts
+            .filter(qat_dsl::question_id.eq(question_id))
+            .into_boxed();
+
+        if let Some(start) = start_date {
+            recent_attempts_query = recent_attempts_query.filter(qat_dsl::created_at.ge(start));
+        }
+        if let Some(end) = end_date {
+            recent_attempts_query = recent_attempts_query.filter(qat_dsl::created_at.le(end));
+        }
+
+        let recent_attempts = recent_attempts_query
+            .left_join(
+                qa_dsl::quiz_answers.on(qat_dsl::selected_answer_id.eq(qa_dsl::id.nullable())),
+            )
+            .select((
+                qat_dsl::session_id,
+                qa_dsl::answer_text.nullable(),
+                qat_dsl::is_correct,
+                qat_dsl::response_time_ms,
+                qat_dsl::created_at,
+            ))
+            .order(qat_dsl::created_at.desc())
+            .limit(20)
+            .load::<(String, Option<String>, Option<bool>, Option<i32>, String)>(&mut conn)
+            .wrap_err("Failed to load recent attempts")?;
+
+        let recent_attempts_structured: Vec<crate::models::quiz::RecentAttempt> = recent_attempts
+            .into_iter()
+            .map(
+                |(session_id, selected_answer_text, is_correct, response_time_ms, created_at)| {
+                    crate::models::quiz::RecentAttempt {
+                        session_id,
+                        selected_answer_text,
+                        is_correct,
+                        response_time_ms,
+                        created_at,
+                    }
+                },
+            )
+            .collect();
+
+        Ok(Some(crate::models::quiz::QuestionDetailStats {
+            question,
+            answers,
+            answer_distribution,
+            total_attempts,
+            correct_attempts,
+            success_rate,
+            most_common_wrong_answer,
+            recent_attempts: recent_attempts_structured,
+        }))
+    }
+
+    /// Get answer distribution for a specific question
+    pub fn get_answer_distribution(
+        &self,
+        question_id: &str,
+        start_date: Option<&str>,
+        end_date: Option<&str>,
+    ) -> Result<Vec<crate::models::quiz::AnswerDistribution>> {
+        use crate::schema::quiz_answers::dsl as qa_dsl;
+        use crate::schema::quiz_attempts::dsl as qat_dsl;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        // Get all answers for this question
+        let answers = qa_dsl::quiz_answers
+            .filter(qa_dsl::question_id.eq(question_id))
+            .order(qa_dsl::sort_order)
+            .select(QuizAnswer::as_select())
+            .load(&mut conn)
+            .wrap_err("Failed to load answers")?;
+
+        // Build attempts query with optional date filtering
+        let mut attempts_query = qat_dsl::quiz_attempts
+            .filter(qat_dsl::question_id.eq(question_id))
+            .into_boxed();
+
+        if let Some(start) = start_date {
+            attempts_query = attempts_query.filter(qat_dsl::created_at.ge(start));
+        }
+        if let Some(end) = end_date {
+            attempts_query = attempts_query.filter(qat_dsl::created_at.le(end));
+        }
+
+        // Get all attempts for this question
+        let attempts = attempts_query
+            .select(QuizAttempt::as_select())
+            .load(&mut conn)
+            .wrap_err("Failed to load question attempts")?;
+
+        let total_attempts = attempts.len() as f64;
+
+        // Calculate distribution for each answer
+        let mut distribution = Vec::new();
+        for answer in answers {
+            let selection_count = attempts
+                .iter()
+                .filter(|attempt| attempt.selected_answer_id.as_ref() == Some(&answer.id))
+                .count();
+
+            let selection_percentage = if total_attempts > 0.0 {
+                (selection_count as f64 / total_attempts) * 100.0
+            } else {
+                0.0
+            };
+
+            distribution.push(crate::models::quiz::AnswerDistribution {
+                answer_id: answer.id,
+                answer_text: answer.answer_text,
+                is_correct: answer.is_correct,
+                selection_count,
+                selection_percentage,
+                sort_order: answer.sort_order,
+            });
+        }
+
+        Ok(distribution)
+    }
 }

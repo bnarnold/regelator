@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}Question Detail Analytics - Admin{% endblock %}
+
+{% block content %}
+<main class="container">
+    <header>
+        <h1>Question Detail Analytics</h1>
+        <nav>
+            <ul>
+                <li><a href="/admin/stats" role="button" class="outline">Back to Statistics</a></li>
+                <li><a href="/admin/dashboard" role="button" class="outline">Admin Dashboard</a></li>
+                <li><a href="/admin/logout" role="button" class="secondary">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Question Overview -->
+    <section>
+        <h2>Question Overview</h2>
+        <article>
+            <header>
+                <h3>{{ question_detail_stats.question.question_text }}</h3>
+                <p>
+                    <span class="badge {% if question_detail_stats.question.difficulty_level == 'beginner' %}success{% elif question_detail_stats.question.difficulty_level == 'intermediate' %}warning{% else %}danger{% endif %}">
+                        {{ question_detail_stats.question.difficulty_level|title }}
+                    </span>
+                    <span style="margin-left: 1rem;">Created: {{ question_detail_stats.question.created_at }}</span>
+                </p>
+            </header>
+            
+            <p><strong>Explanation:</strong> {{ question_detail_stats.question.explanation }}</p>
+            
+            <!-- Performance Summary -->
+            <div class="grid">
+                <article>
+                    <header><h4>Total Attempts</h4></header>
+                    <p><strong>{{ question_detail_stats.total_attempts }}</strong> quiz attempts</p>
+                </article>
+                
+                <article>
+                    <header><h4>Correct Answers</h4></header>
+                    <p><strong>{{ question_detail_stats.correct_attempts }}</strong> correct</p>
+                </article>
+                
+                <article>
+                    <header><h4>Success Rate</h4></header>
+                    <p><strong class="{% if question_detail_stats.success_rate < 50 %}text-danger{% elif question_detail_stats.success_rate < 75 %}text-warning{% else %}text-success{% endif %}">
+                        {{ question_detail_stats.success_rate|round1 }}%
+                    </strong></p>
+                </article>
+            </div>
+
+            {% if question_detail_stats.most_common_wrong_answer %}
+            <p><strong>Most Common Wrong Answer:</strong> {{ question_detail_stats.most_common_wrong_answer }}</p>
+            {% endif %}
+        </article>
+    </section>
+
+    <!-- Answer Distribution Analysis -->
+    <section>
+        <h2>Answer Distribution - {{ current_filter }}</h2>
+        {% if question_detail_stats.answer_distribution %}
+        <figure>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Answer Option</th>
+                        <th>Correct?</th>
+                        <th>Selection Count</th>
+                        <th>Selection %</th>
+                        <th>Visual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for answer in question_detail_stats.answer_distribution %}
+                    <tr class="{% if answer.is_correct %}table-success{% else %}{% if answer.selection_count > 0 %}table-warning{% endif %}{% endif %}">
+                        <td>{{ answer.answer_text }}</td>
+                        <td>
+                            {% if answer.is_correct %}
+                                <span class="text-success">✓ Correct</span>
+                            {% else %}
+                                <span class="text-muted">✗ Wrong</span>
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ answer.selection_count }}</strong></td>
+                        <td><strong>{{ answer.selection_percentage|round1 }}%</strong></td>
+                        <td>
+                            <div style="width: 120px; height: 12px; background-color: var(--pico-muted-border-color); border-radius: var(--pico-border-radius); overflow: hidden;">
+                                <div style="width: {{ answer.selection_percentage }}%; height: 100%; background-color: {% if answer.is_correct %}light-dark(#16a34a, #22c55e){% else %}light-dark(#dc2626, #ef4444){% endif %}; transition: width 0.3s ease;"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </figure>
+        {% else %}
+        <p>No answer distribution data available for the selected time period.</p>
+        {% endif %}
+    </section>
+
+    <!-- Recent Attempts Timeline -->
+    <section>
+        <h2>Recent Attempts (Last 20)</h2>
+        {% if question_detail_stats.recent_attempts %}
+        <figure>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Session</th>
+                        <th>Selected Answer</th>
+                        <th>Result</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for attempt in question_detail_stats.recent_attempts %}
+                    <tr>
+                        <td>
+                            <button type="button" onclick="copyToClipboard('{{ attempt.session_id }}')" class="copy-session-btn" title="Copy full session ID">
+                                📋 Copy
+                            </button>
+                        </td>
+                        <td>
+                            {% if attempt.selected_answer_text %}
+                                {{ attempt.selected_answer_text }}
+                            {% else %}
+                                <em class="text-muted">No answer selected</em>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if attempt.is_correct == true %}
+                                <span class="text-success">✓ Correct</span>
+                            {% elif attempt.is_correct == false %}
+                                <span class="text-danger">✗ Incorrect</span>
+                            {% else %}
+                                <span class="text-muted">No response</span>
+                            {% endif %}
+                        </td>
+                        <td><small>{{ attempt.created_at }}</small></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </figure>
+        {% else %}
+        <p>No recent attempts found for this question.</p>
+        {% endif %}
+    </section>
+
+    <!-- Question Management Actions -->
+    <section>
+        <h2>Question Management</h2>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <a href="/admin/questions/{{ question_detail_stats.question.id }}/edit" role="button" class="primary">Edit Question</a>
+            <a href="/admin/questions/{{ question_detail_stats.question.id }}/preview" role="button" class="outline">Preview Question</a>
+        </div>
+    </section>
+</main>
+
+<style>
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: var(--pico-border-radius);
+}
+
+.badge.success { 
+    background-color: light-dark(#16a34a, #22c55e); 
+    color: white; 
+}
+.badge.warning { 
+    background-color: light-dark(#f59e0b, #fbbf24); 
+    color: light-dark(black, black); 
+}
+.badge.danger { 
+    background-color: light-dark(#dc2626, #ef4444); 
+    color: white; 
+}
+
+.text-success { color: light-dark(#16a34a, #22c55e); }
+.text-warning { color: light-dark(#f59e0b, #fbbf24); }
+.text-danger { color: light-dark(#dc2626, #ef4444); }
+.text-muted { color: var(--pico-muted-color); }
+
+.table-success { 
+    background-color: light-dark(rgba(22, 163, 74, 0.1), rgba(34, 197, 94, 0.15)); 
+}
+.table-warning { 
+    background-color: light-dark(rgba(245, 158, 11, 0.1), rgba(251, 191, 36, 0.15)); 
+}
+
+.copy-session-btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border: var(--pico-border-width) solid var(--pico-muted-border-color);
+    background: var(--pico-card-background-color);
+    border-radius: var(--pico-border-radius);
+    color: var(--pico-color);
+    cursor: pointer;
+    transition: all var(--pico-transition);
+}
+
+.copy-session-btn:hover {
+    background: var(--pico-secondary-background);
+    border-color: var(--pico-secondary-border);
+}
+
+.copy-session-btn.copied {
+    background: light-dark(#d4edda, #0f2419);
+    border-color: light-dark(#c3e6cb, #22c55e);
+    color: light-dark(#155724, #4ade80);
+}
+</style>
+
+<script>
+async function copyToClipboard(text) {
+    const button = event.target;
+    const originalText = button.textContent;
+    
+    try {
+        await navigator.clipboard.writeText(text);
+        
+        // Visual feedback
+        button.classList.add('copied');
+        button.textContent = '✓ Copied';
+        
+        // Reset after 2 seconds
+        setTimeout(() => {
+            button.classList.remove('copied');
+            button.textContent = originalText;
+        }, 2000);
+        
+    } catch (err) {
+        console.error('Failed to copy: ', err);
+        button.textContent = '❌ Failed';
+        setTimeout(() => {
+            button.textContent = originalText;
+        }, 2000);
+    }
+}
+</script>
+{% endblock %}

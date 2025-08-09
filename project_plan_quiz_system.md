@@ -372,7 +372,7 @@ EXPLAIN: After a contested foul, play resumes with the stall count at the count 
 ### Story 7: Usage Statistics Analysis & Reporting (Fred) 🏗️
 **Goal:** Provide Fred with insights for educational planning and content improvement
 
-**Implementation Status:** In Progress - Broken down into 5 subtasks for systematic development
+**Implementation Status:** In Progress - 2/5 subtasks completed (Foundation & Question Detail View complete)
 
 #### **Subtask 7.1: Basic Statistics Infrastructure & Text Tables** 🎯
 **Priority:** High (Foundation) | **Effort:** 1-2 days
@@ -391,22 +391,34 @@ EXPLAIN: After a contested foul, play resumes with the stall count at the count 
 - Template: `src/templates/admin_stats.html` with Pico CSS styling
 - Models: `QuestionStatistics`, `AggregateStatistics` structs
 
-#### **Subtask 7.2: Question Detail View & Answer Analysis** 🎯
-**Priority:** High | **Effort:** 1 day
+#### **Subtask 7.2: Question Detail View & Answer Analysis** ✅ **COMPLETED**
+**Priority:** High | **Effort:** 1 day | **Completed:** 2025-08-09
 
 **Acceptance Criteria:**
-- [ ] Create `/admin/stats/question/{question_id}` route
-- [ ] Show detailed question view with full text and explanation
-- [ ] Display answer distribution (how many users chose each option)
-- [ ] Include wrong answer analysis with most common mistakes
-- [ ] Show recent attempts timeline
-- [ ] Add navigation back to main stats dashboard
+- [x] Create `/admin/stats/question/{question_id}` route
+- [x] Show detailed question view with full text and explanation
+- [x] Display answer distribution (how many users chose each option)
+- [x] Include wrong answer analysis with most common mistakes
+- [x] Show recent attempts timeline
+- [x] Add navigation back to main stats dashboard
 
-**Technical Implementation:**
-- New repository methods: `get_question_detail_statistics()`, `get_answer_distribution()`
-- Handler: `admin_question_detail_stats()` in `src/handlers/admin.rs`
-- Template: `src/templates/admin_question_detail_stats.html`
-- Models: `QuestionDetailStats`, `AnswerDistribution` structs
+**Technical Implementation Completed:**
+- ✅ Repository methods: `get_question_detail_statistics()`, `get_answer_distribution()`
+- ✅ Handler: `admin_question_detail_stats()` in `src/handlers/admin.rs`
+- ✅ Template: `src/templates/admin_question_detail_stats.html`
+- ✅ Models: `QuestionDetailStats`, `AnswerDistribution`, `RecentAttempt` structs
+- ✅ Route: `/admin/stats/question/{question_id}` with date filtering support
+- ✅ UI improvements: Session copy buttons, removed empty columns, split progress bars
+- ✅ Navigation: Bidirectional links Stats ↔ Details ↔ Preview
+- ✅ Theme support: Proper Pico CSS variables and light-dark() compatibility
+
+**Features Delivered:**
+- Professional question analytics dashboard with performance metrics
+- Answer distribution analysis with visual progress bars
+- Recent attempts timeline with session ID management
+- Most common wrong answer identification
+- Success rate calculation and difficulty assessment
+- Seamless navigation flow for Fred's workflow
 
 #### **Subtask 7.3: Chart Integration with Charming Library** 🎯
 **Priority:** Medium | **Effort:** 2-3 days

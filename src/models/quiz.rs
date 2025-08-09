@@ -343,3 +343,37 @@ pub struct AggregateStatistics {
     pub date_range_start: Option<String>,
     pub date_range_end: Option<String>,
 }
+
+/// Answer distribution statistics for question detail view
+#[derive(Debug, Clone, Serialize)]
+pub struct AnswerDistribution {
+    pub answer_id: String,
+    pub answer_text: String,
+    pub is_correct: bool,
+    pub selection_count: usize,
+    pub selection_percentage: f64,
+    pub sort_order: i32,
+}
+
+/// Detailed question statistics for admin analytics
+#[derive(Debug, Clone, Serialize)]
+pub struct QuestionDetailStats {
+    pub question: QuizQuestion,
+    pub answers: Vec<QuizAnswer>,
+    pub answer_distribution: Vec<AnswerDistribution>,
+    pub total_attempts: usize,
+    pub correct_attempts: usize,
+    pub success_rate: f64,
+    pub most_common_wrong_answer: Option<String>,
+    pub recent_attempts: Vec<RecentAttempt>,
+}
+
+/// Recent attempt data for question detail view
+#[derive(Debug, Clone, Serialize)]
+pub struct RecentAttempt {
+    pub session_id: String,
+    pub selected_answer_text: Option<String>,
+    pub is_correct: Option<bool>,
+    pub response_time_ms: Option<i32>,
+    pub created_at: String,
+}

@@ -109,7 +109,10 @@
                         </td>
                         <td>{{ stat.created_at }}</td>
                         <td>
-                            <a href="/admin/questions/{{ stat.question_id }}/edit" class="outline" role="button" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">Edit</a>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <a href="/admin/stats/question/{{ stat.question_id }}" class="primary" role="button" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">View Details</a>
+                                <a href="/admin/questions/{{ stat.question_id }}/edit" class="outline" role="button" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">Edit</a>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}

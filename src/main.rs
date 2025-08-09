@@ -312,6 +312,10 @@ async fn main() {
         .route("/admin/logout", get(handlers::admin_logout))
         // Admin statistics routes
         .route("/admin/stats", get(handlers::admin::admin_stats_dashboard))
+        .route(
+            "/admin/stats/question/{question_id}",
+            get(handlers::admin::admin_question_detail_stats),
+        )
         // Admin question management routes
         .route("/admin/questions", get(handlers::admin::questions_list))
         .route(
