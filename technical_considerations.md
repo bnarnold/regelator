@@ -18,6 +18,25 @@ This document captures technical decisions, lessons learned, and implementation 
 - Axum's State extraction works seamlessly with new modular structure
 - Re-exports in mod.rs maintain backward compatibility during refactoring
 
+### Claude Code Slash Commands (2025-08-09)
+**Decision:** Extract commit workflow into custom slash command `/commit`
+**Rationale:**
+- Separates reusable commands from project documentation
+- Follows Claude Code best practices for custom commands
+- Makes commit workflow easily accessible and consistent
+
+**Implementation:**
+- Created `.claude/commands/commit.md` with proper frontmatter
+- Includes `allowed-tools` specification for required tools
+- Handles `cargo clippy --fix` limitation with post-commit workflow
+- Removed commit instructions from CLAUDE.md to avoid duplication
+
+**Lessons Learned:**
+- Slash commands need frontmatter with `description` and `allowed-tools`
+- Command files should be prompts for Claude to execute, not documentation
+- `cargo clippy --fix` requires clean working tree, so must run after commit
+- Use `jj squash` to combine lint fixes back into main commit
+
 ### Frontend: HTMX + Pico.css
 **Decision:** Server-side rendered HTML with HTMX for interactivity
 **Rationale:**

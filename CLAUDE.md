@@ -130,27 +130,8 @@ Example format:
 - See current changes with `jj diff`
 - Create new change with `jj new` (optional, changes are auto-tracked)
 - Describe changes with `jj describe -m "message"`
+- **Commit changes**: Use the `commit` command
 
-### IMPORTANT: Pre-Commit Process
-**ALWAYS follow this order before committing:**
-
-1. **Update Project Plans FIRST**:
-   - Update progress in detailed epic plans (`project_plan_{epic}.md`)
-   - Mark completed stories/subtasks with ✅ and completion date
-   - Update acceptance criteria checkboxes [x]
-   - Update master plan (`project_plan.md`) epic status
-   - Update technical_considerations.md with lessons learned
-
-2. **Code Quality Checks**:
-   - `cargo fmt` - Format all code consistently
-   - `cargo clippy --fix` - Auto-fix linting issues where possible
-   - `cargo check` - Verify compilation without building
-   - `cargo clippy` - Check for any remaining lint warnings
-
-3. **Create Commit**:
-   - `jj commit -m "descriptive message"`
-   - Use story/subtask format: "Implement [feature] ([Story X.Y])"
-   - Always include Claude Code attribution in commit message
 
 ## Technology stack
 
