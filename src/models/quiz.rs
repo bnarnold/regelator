@@ -377,3 +377,34 @@ pub struct RecentAttempt {
     pub response_time_ms: Option<i32>,
     pub created_at: String,
 }
+
+/// Data structure for success rate trends over time (chart data)
+#[derive(Debug, Clone, Serialize)]
+pub struct SuccessRateTrend {
+    pub date: String,
+    pub success_rate: f64,
+    pub total_attempts: usize,
+}
+
+/// Data structure for difficulty performance summary (chart data)
+#[derive(Debug, Clone, Serialize)]
+pub struct DifficultyPerformance {
+    pub difficulty: String,
+    pub question_count: usize,
+    pub average_success_rate: f64,
+    pub total_attempts: usize,
+}
+
+/// Data structure for daily attempts by difficulty with success/fail breakdown (stacked area chart)
+#[derive(Debug, Clone, Serialize)]
+pub struct DailyAttemptsByDifficulty {
+    pub date: String,
+    pub difficulty_attempts: std::collections::HashMap<String, DifficultyAttemptBreakdown>,
+}
+
+/// Breakdown of attempts for a specific difficulty level on a specific day
+#[derive(Debug, Clone, Serialize)]
+pub struct DifficultyAttemptBreakdown {
+    pub success_count: usize,
+    pub fail_count: usize,
+}

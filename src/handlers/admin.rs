@@ -672,3 +672,200 @@ pub async fn admin_question_detail_stats(
 
     Ok(Html(rendered))
 }
+
+// Chart handlers for admin analytics
+
+/// Generate daily attempts by difficulty stacked area chart as SVG
+#[instrument(skip(repository, _admin), fields(admin_username = %_admin.username()))]
+pub async fn success_trends_chart(
+    State(repository): State<RuleRepository>,
+    _admin: AdminToken,
+    Query(params): Query<StatsQueryParams>,
+) -> Result<axum::response::Response, AppError> {
+    // Parse date range (same logic as stats dashboard)
+    let (start_date, end_date) = match params.filter.as_deref() {
+        Some("7days") => {
+            let end = Utc::now();
+            let start = end - Duration::days(7);
+            (
+                Some(start.format("%Y-%m-%d").to_string()),
+                Some(end.format("%Y-%m-%d").to_string()),
+            )
+        }
+        Some("30days") => {
+            let end = Utc::now();
+            let start = end - Duration::days(30);
+            (
+                Some(start.format("%Y-%m-%d").to_string()),
+                Some(end.format("%Y-%m-%d").to_string()),
+            )
+        }
+        Some("custom") => (params.start_date, params.end_date),
+        _ => (None, None),
+    };
+
+    // Get daily attempts by difficulty data
+    let daily_attempts = repository.get_daily_attempts_by_difficulty(
+        start_date.as_deref(),
+        end_date.as_deref(),
+    )?;
+
+    // Generate chart SVG
+    let svg_content = crate::charts::admin::AdminCharts::daily_attempts_by_difficulty(daily_attempts)
+        .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to generate chart: {}", e)))?;
+
+    // Return SVG response with proper headers
+    Ok(axum::response::Response::builder()
+        .header(axum::http::header::CONTENT_TYPE, "image/svg+xml")
+        .header(axum::http::header::CACHE_CONTROL, "max-age=300") // 5 minute cache
+        .body(axum::body::Body::from(svg_content))
+        .unwrap())
+}
+
+/// Generate difficulty distribution chart as SVG
+#[instrument(skip(repository, _admin), fields(admin_username = %_admin.username()))]
+pub async fn difficulty_distribution_chart(
+    State(repository): State<RuleRepository>,
+    _admin: AdminToken,
+    Query(params): Query<StatsQueryParams>,
+) -> Result<axum::response::Response, AppError> {
+    // Parse date range (same logic as stats dashboard)
+    let (start_date, end_date) = match params.filter.as_deref() {
+        Some("7days") => {
+            let end = Utc::now();
+            let start = end - Duration::days(7);
+            (
+                Some(start.format("%Y-%m-%d").to_string()),
+                Some(end.format("%Y-%m-%d").to_string()),
+            )
+        }
+        Some("30days") => {
+            let end = Utc::now();
+            let start = end - Duration::days(30);
+            (
+                Some(start.format("%Y-%m-%d").to_string()),
+                Some(end.format("%Y-%m-%d").to_string()),
+            )
+        }
+        Some("custom") => (params.start_date, params.end_date),
+        _ => (None, None),
+    };
+
+    // Get difficulty performance data
+    let performance = repository.get_difficulty_performance_summary(
+        start_date.as_deref(),
+        end_date.as_deref(),
+    )?;
+
+    // Generate chart SVG
+    let svg_content = crate::charts::admin::AdminCharts::difficulty_distribution(performance)
+        .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to generate chart: {}", e)))?;
+
+    // Return SVG response with proper headers
+    Ok(axum::response::Response::builder()
+        .header(axum::http::header::CONTENT_TYPE, "image/svg+xml")
+        .header(axum::http::header::CACHE_CONTROL, "max-age=300") // 5 minute cache
+        .body(axum::body::Body::from(svg_content))
+        .unwrap())
+}
+
+/// Generate question performance chart as SVG
+#[instrument(skip(repository, _admin), fields(admin_username = %_admin.username()))]
+pub async fn question_performance_chart(
+    State(repository): State<RuleRepository>,
+    _admin: AdminToken,
+    Query(params): Query<StatsQueryParams>,
+) -> Result<axum::response::Response, AppError> {
+    let limit = 10; // Default limit for question performance chart
+
+    // Parse date range (same logic as stats dashboard)  
+    let (start_date, end_date) = match params.filter.as_deref() {
+        Some("7days") => {
+            let end = Utc::now();
+            let start = end - Duration::days(7);
+            (
+                Some(start.format("%Y-%m-%d").to_string()),
+                Some(end.format("%Y-%m-%d").to_string()),
+            )
+        }
+        Some("30days") => {
+            let end = Utc::now();
+            let start = end - Duration::days(30);
+            (
+                Some(start.format("%Y-%m-%d").to_string()),
+                Some(end.format("%Y-%m-%d").to_string()),
+            )
+        }
+        Some("custom") => (params.start_date, params.end_date),
+        _ => (None, None),
+    };
+
+    // Get question statistics
+    let question_stats = repository.get_question_statistics(
+        start_date.as_deref(),
+        end_date.as_deref(),
+        Some(limit),
+        None,
+    )?;
+
+    // Generate chart SVG
+    let svg_content = crate::charts::admin::AdminCharts::question_performance(question_stats, limit)
+        .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to generate chart: {}", e)))?;
+
+    // Return SVG response with proper headers
+    Ok(axum::response::Response::builder()
+        .header(axum::http::header::CONTENT_TYPE, "image/svg+xml")
+        .header(axum::http::header::CACHE_CONTROL, "max-age=300") // 5 minute cache
+        .body(axum::body::Body::from(svg_content))
+        .unwrap())
+}
+
+/// Generate answer distribution pie chart as SVG for a specific question
+#[instrument(skip(repository, _admin), fields(admin_username = %_admin.username(), question_id = %question_id))]
+pub async fn answer_distribution_chart(
+    State(repository): State<RuleRepository>,
+    _admin: AdminToken,
+    Path(question_id): Path<String>,
+    Query(params): Query<StatsQueryParams>,
+) -> Result<axum::response::Response, AppError> {
+    // Parse date range (same logic as stats dashboard)
+    let (start_date, end_date) = match params.filter.as_deref() {
+        Some("7days") => {
+            let end = Utc::now();
+            let start = end - Duration::days(7);
+            (
+                Some(start.format("%Y-%m-%d").to_string()),
+                Some(end.format("%Y-%m-%d").to_string()),
+            )
+        }
+        Some("30days") => {
+            let end = Utc::now();
+            let start = end - Duration::days(30);
+            (
+                Some(start.format("%Y-%m-%d").to_string()),
+                Some(end.format("%Y-%m-%d").to_string()),
+            )
+        }
+        Some("custom") => (params.start_date, params.end_date),
+        _ => (None, None),
+    };
+
+    // Get question details and answer distribution
+    let question_detail_stats = repository
+        .get_question_detail_statistics(&question_id, start_date.as_deref(), end_date.as_deref())?
+        .ok_or_else(|| AppError(color_eyre::eyre::eyre!("Question not found")))?;
+
+    // Generate chart SVG
+    let svg_content = crate::charts::admin::AdminCharts::answer_distribution(
+        &question_detail_stats.question.question_text,
+        question_detail_stats.answer_distribution,
+    )
+    .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to generate chart: {}", e)))?;
+
+    // Return SVG response with proper headers
+    Ok(axum::response::Response::builder()
+        .header(axum::http::header::CONTENT_TYPE, "image/svg+xml")
+        .header(axum::http::header::CACHE_CONTROL, "max-age=300") // 5 minute cache
+        .body(axum::body::Body::from(svg_content))
+        .unwrap())
+}

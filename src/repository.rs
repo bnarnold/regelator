@@ -1383,4 +1383,188 @@ impl RuleRepository {
 
         Ok(distribution)
     }
+
+    // Chart-optimized repository methods for admin analytics
+
+    /// Get daily attempts by difficulty with success/fail breakdown for stacked area chart
+    pub fn get_daily_attempts_by_difficulty(
+        &self,
+        start_date: Option<&str>,
+        end_date: Option<&str>,
+    ) -> Result<Vec<crate::models::quiz::DailyAttemptsByDifficulty>> {
+        use crate::schema::quiz_attempts::dsl as qa_dsl;
+        use crate::schema::quiz_questions::dsl as qq_dsl;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        // First get all questions to map question_id to difficulty
+        let questions = qq_dsl::quiz_questions
+            .select((qq_dsl::id, qq_dsl::difficulty_level))
+            .load::<(String, String)>(&mut conn)
+            .wrap_err("Failed to load questions for difficulty mapping")?;
+
+        let question_difficulty: std::collections::HashMap<String, String> = questions
+            .into_iter()
+            .collect();
+
+        // Build attempts query with date filtering
+        let mut attempts_query = qa_dsl::quiz_attempts.into_boxed();
+        
+        if let Some(start) = start_date {
+            attempts_query = attempts_query.filter(qa_dsl::created_at.ge(start));
+        }
+        if let Some(end) = end_date {
+            attempts_query = attempts_query.filter(qa_dsl::created_at.le(end));
+        }
+
+        // Get all attempts in date range
+        let attempts = attempts_query
+            .select((qa_dsl::created_at, qa_dsl::question_id, qa_dsl::is_correct))
+            .load::<(String, String, Option<bool>)>(&mut conn)
+            .wrap_err("Failed to load quiz attempts for difficulty breakdown")?;
+
+        // Group by date and difficulty, counting success/fail
+        let mut daily_stats: std::collections::HashMap<String, std::collections::HashMap<String, (usize, usize)>> = 
+            std::collections::HashMap::new();
+
+        for (created_at, question_id, is_correct) in attempts {
+            // Extract just the date part (YYYY-MM-DD)
+            let date = created_at.split('T').next().unwrap_or(&created_at).to_string();
+            
+            // Get difficulty for this question
+            if let Some(difficulty) = question_difficulty.get(&question_id) {
+                let date_stats = daily_stats.entry(date).or_default();
+                let (success_count, fail_count) = date_stats.entry(difficulty.clone()).or_insert((0, 0));
+                
+                if is_correct == Some(true) {
+                    *success_count += 1;
+                } else {
+                    *fail_count += 1;
+                }
+            }
+        }
+
+        // Convert to DailyAttemptsByDifficulty structs and sort by date
+        let mut daily_attempts: Vec<crate::models::quiz::DailyAttemptsByDifficulty> = daily_stats
+            .into_iter()
+            .map(|(date, difficulty_stats)| {
+                let difficulty_attempts = difficulty_stats
+                    .into_iter()
+                    .map(|(difficulty, (success_count, fail_count))| {
+                        (difficulty, crate::models::quiz::DifficultyAttemptBreakdown {
+                            success_count,
+                            fail_count,
+                        })
+                    })
+                    .collect();
+
+                crate::models::quiz::DailyAttemptsByDifficulty {
+                    date,
+                    difficulty_attempts,
+                }
+            })
+            .collect();
+
+        daily_attempts.sort_by(|a, b| a.date.cmp(&b.date));
+        Ok(daily_attempts)
+    }
+
+    /// Get difficulty performance summary for chart display
+    pub fn get_difficulty_performance_summary(
+        &self,
+        start_date: Option<&str>,
+        end_date: Option<&str>,
+    ) -> Result<Vec<crate::models::quiz::DifficultyPerformance>> {
+        use crate::schema::quiz_questions::dsl as qq_dsl;
+        use crate::schema::quiz_attempts::dsl as qa_dsl;
+
+        let mut conn = self
+            .pool
+            .get()
+            .wrap_err("Failed to get database connection")?;
+
+        // Get all questions grouped by difficulty
+        let questions = qq_dsl::quiz_questions
+            .select((qq_dsl::id, qq_dsl::difficulty_level))
+            .load::<(String, String)>(&mut conn)
+            .wrap_err("Failed to load questions for difficulty analysis")?;
+
+        // Build attempts query with date filtering
+        let mut attempts_query = qa_dsl::quiz_attempts.into_boxed();
+        
+        if let Some(start) = start_date {
+            attempts_query = attempts_query.filter(qa_dsl::created_at.ge(start));
+        }
+        if let Some(end) = end_date {
+            attempts_query = attempts_query.filter(qa_dsl::created_at.le(end));
+        }
+
+        let attempts = attempts_query
+            .select((qa_dsl::question_id, qa_dsl::is_correct))
+            .load::<(String, Option<bool>)>(&mut conn)
+            .wrap_err("Failed to load attempts for difficulty analysis")?;
+
+        // Create question_id to difficulty mapping
+        let question_difficulty: std::collections::HashMap<String, String> = questions
+            .into_iter()
+            .collect();
+
+        // Group attempts by difficulty
+        let mut difficulty_stats: std::collections::HashMap<String, (usize, usize, usize)> = 
+            std::collections::HashMap::new();
+
+        for (question_id, is_correct) in attempts {
+            if let Some(difficulty) = question_difficulty.get(&question_id) {
+                let (_question_count, total_attempts, correct_attempts) = 
+                    difficulty_stats.entry(difficulty.clone()).or_insert((0, 0, 0));
+                *total_attempts += 1;
+                if is_correct == Some(true) {
+                    *correct_attempts += 1;
+                }
+            }
+        }
+
+        // Count unique questions per difficulty
+        let mut question_counts: std::collections::HashMap<String, usize> = 
+            std::collections::HashMap::new();
+        for (_, difficulty) in question_difficulty {
+            *question_counts.entry(difficulty).or_insert(0) += 1;
+        }
+
+        // Convert to DifficultyPerformance structs
+        let mut performance: Vec<crate::models::quiz::DifficultyPerformance> = difficulty_stats
+            .into_iter()
+            .map(|(difficulty, (_, total_attempts, correct_attempts))| {
+                let success_rate = if total_attempts > 0 { 
+                    (correct_attempts as f64 / total_attempts as f64) * 100.0 
+                } else { 
+                    0.0 
+                };
+                let question_count = question_counts.get(&difficulty).unwrap_or(&0);
+                
+                crate::models::quiz::DifficultyPerformance {
+                    difficulty,
+                    question_count: *question_count,
+                    average_success_rate: success_rate,
+                    total_attempts,
+                }
+            })
+            .collect();
+
+        // Sort by difficulty level (beginner, intermediate, advanced)
+        performance.sort_by(|a, b| {
+            match (a.difficulty.as_str(), b.difficulty.as_str()) {
+                ("beginner", _) => std::cmp::Ordering::Less,
+                ("advanced", _) => std::cmp::Ordering::Greater,
+                ("intermediate", "beginner") => std::cmp::Ordering::Greater,
+                ("intermediate", "advanced") => std::cmp::Ordering::Less,
+                _ => a.difficulty.cmp(&b.difficulty),
+            }
+        });
+
+        Ok(performance)
+    }
 }

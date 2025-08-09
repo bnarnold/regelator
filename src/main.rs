@@ -20,6 +20,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{info, instrument, level_filters::LevelFilter};
 
+mod charts;
 mod handlers;
 mod models;
 mod quiz_session;
@@ -315,6 +316,23 @@ async fn main() {
         .route(
             "/admin/stats/question/{question_id}",
             get(handlers::admin::admin_question_detail_stats),
+        )
+        // Admin chart routes
+        .route(
+            "/admin/stats/charts/success-trends.svg",
+            get(handlers::admin::success_trends_chart),
+        )
+        .route(
+            "/admin/stats/charts/difficulty-distribution.svg",
+            get(handlers::admin::difficulty_distribution_chart),
+        )
+        .route(
+            "/admin/stats/charts/question-performance.svg",
+            get(handlers::admin::question_performance_chart),
+        )
+        .route(
+            "/admin/stats/question/{question_id}/chart/answer-distribution.svg",
+            get(handlers::admin::answer_distribution_chart),
         )
         // Admin question management routes
         .route("/admin/questions", get(handlers::admin::questions_list))
