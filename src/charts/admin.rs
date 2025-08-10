@@ -30,7 +30,7 @@ impl AdminCharts {
         }
 
         // Extract dates for x-axis
-        let dates: Vec<String> = daily_data.iter().map(|d| d.date.clone()).collect();
+        let dates: Vec<String> = daily_data.iter().map(|d| d.date.to_string()).collect();
 
         // Collect all unique difficulties across all days
         let mut all_difficulties: std::collections::HashSet<String> =
@@ -73,8 +73,8 @@ impl AdminCharts {
             series_list.push(
                 Line::new()
                     .name(format!("{} Success", difficulty.to_uppercase()))
-                    .stack(format!("{}_stack", difficulty)) // Stack by difficulty
-                    .area_style(Default::default()) // Make it an area chart
+                    .stack(format!("{difficulty}_stack")) // Stack by difficulty
+                    .area_style(charming::element::AreaStyle::default()) // Make it an area chart
                     .data(success_data),
             );
 
@@ -82,8 +82,8 @@ impl AdminCharts {
             series_list.push(
                 Line::new()
                     .name(format!("{} Fail", difficulty.to_uppercase()))
-                    .stack(format!("{}_stack", difficulty)) // Same stack as success
-                    .area_style(Default::default()) // Make it an area chart
+                    .stack(format!("{difficulty}_stack")) // Same stack as success
+                    .area_style(charming::element::AreaStyle::default()) // Make it an area chart
                     .data(fail_data),
             );
         }
@@ -334,4 +334,3 @@ impl AdminCharts {
         ChartGenerator::generate_svg(chart)
     }
 }
-

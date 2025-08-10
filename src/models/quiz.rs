@@ -71,8 +71,8 @@ pub struct QuizQuestion {
     pub question_text: String,
     pub explanation: String,
     pub difficulty_level: String,
-    pub created_at: String,
-    pub updated_at: String,
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: chrono::NaiveDateTime,
     pub status: QuestionStatus,
 }
 
@@ -84,8 +84,8 @@ pub struct QuizAnswer {
     pub answer_text: String,
     pub is_correct: bool,
     pub sort_order: i32,
-    pub created_at: String,
-    pub updated_at: String,
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: chrono::NaiveDateTime,
 }
 
 #[derive(Queryable, Selectable, Debug, Clone)]
@@ -94,7 +94,7 @@ pub struct QuizQuestionRule {
     pub id: String,
     pub question_id: String,
     pub rule_id: String,
-    pub created_at: String,
+    pub created_at: chrono::NaiveDateTime,
 }
 
 #[derive(Queryable, Selectable, Debug, Clone)]
@@ -107,7 +107,7 @@ pub struct QuizAttempt {
     pub selected_answer_id: Option<String>,
     pub is_correct: Option<bool>,
     pub response_time_ms: Option<i32>,
-    pub created_at: String,
+    pub created_at: chrono::NaiveDateTime,
 }
 
 // Quiz models - Insertable structs (for creating new records)
@@ -329,7 +329,7 @@ pub struct QuestionStatistics {
     pub total_attempts: usize,
     pub correct_attempts: usize,
     pub success_rate: f64,
-    pub created_at: String,
+    pub created_at: chrono::NaiveDateTime,
 }
 
 /// Aggregate statistics across all quiz activity
@@ -340,8 +340,8 @@ pub struct AggregateStatistics {
     pub total_sessions: usize,
     pub overall_success_rate: f64,
     pub most_attempted_difficulty: String,
-    pub date_range_start: Option<String>,
-    pub date_range_end: Option<String>,
+    pub date_range_start: Option<chrono::NaiveDate>,
+    pub date_range_end: Option<chrono::NaiveDate>,
 }
 
 /// Answer distribution statistics for question detail view
@@ -375,13 +375,13 @@ pub struct RecentAttempt {
     pub selected_answer_text: Option<String>,
     pub is_correct: Option<bool>,
     pub response_time_ms: Option<i32>,
-    pub created_at: String,
+    pub created_at: chrono::NaiveDateTime,
 }
 
 /// Data structure for success rate trends over time (chart data)
 #[derive(Debug, Clone, Serialize)]
 pub struct SuccessRateTrend {
-    pub date: String,
+    pub date: chrono::NaiveDate,
     pub success_rate: f64,
     pub total_attempts: usize,
 }
@@ -398,7 +398,7 @@ pub struct DifficultyPerformance {
 /// Data structure for daily attempts by difficulty with success/fail breakdown (stacked area chart)
 #[derive(Debug, Clone, Serialize)]
 pub struct DailyAttemptsByDifficulty {
-    pub date: String,
+    pub date: chrono::NaiveDate,
     pub difficulty_attempts: std::collections::HashMap<String, DifficultyAttemptBreakdown>,
 }
 

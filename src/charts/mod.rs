@@ -10,7 +10,8 @@ impl ChartGenerator {
     /// Generate SVG chart from Chart configuration using server-side rendering
     pub fn generate_svg(chart: Chart) -> Result<String> {
         let mut renderer = ImageRenderer::new(800, 400);
-        renderer.render(&chart)
+        renderer
+            .render(&chart)
             .wrap_err("Failed to render chart to SVG")
     }
 
@@ -28,8 +29,7 @@ pub struct ChartTheme;
 impl ChartTheme {
     /// Get base chart configuration with consistent styling
     pub fn base_config() -> Chart {
-        Chart::new()
-            .background_color("#f8f9fa") // Matches Pico CSS light theme
+        Chart::new().background_color("#f8f9fa") // Matches Pico CSS light theme
     }
 
     /// Color palette for charts (matching Pico CSS theme)
@@ -49,9 +49,9 @@ impl ChartTheme {
     /// Colors for difficulty levels
     pub fn difficulty_colors() -> std::collections::HashMap<&'static str, &'static str> {
         let mut colors = std::collections::HashMap::new();
-        colors.insert("beginner", "#28a745");    // Success green
-        colors.insert("intermediate", "#ffc107"); // Warning yellow  
-        colors.insert("advanced", "#dc3545");     // Danger red
+        colors.insert("beginner", "#28a745"); // Success green
+        colors.insert("intermediate", "#ffc107"); // Warning yellow
+        colors.insert("advanced", "#dc3545"); // Danger red
         colors
     }
 }

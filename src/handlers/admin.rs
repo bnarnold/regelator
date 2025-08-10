@@ -7,7 +7,7 @@ use axum::{
     response::{Html, Redirect},
 };
 use axum_extra::extract::{CookieJar, Form, Query};
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use minijinja::Environment;
 use regelator::auth::{clear_admin_cookie, create_admin_cookie, AdminToken};
 use regelator::config::Config;
@@ -545,8 +545,8 @@ pub struct AdminStatsContext {
 #[derive(Deserialize, Debug)]
 pub struct StatsQueryParams {
     pub filter: Option<String>,
-    pub start_date: Option<String>,
-    pub end_date: Option<String>,
+    pub start_date: Option<chrono::NaiveDate>,
+    pub end_date: Option<chrono::NaiveDate>,
 }
 
 /// Show admin statistics dashboard
@@ -560,28 +560,28 @@ pub async fn admin_stats_dashboard(
     // Determine date range based on filter
     let (start_date, end_date, filter_name, filter_value) = match params.filter.as_deref() {
         Some("7days") => {
-            let end = Utc::now();
-            let start = end - Duration::days(7);
+            let end = Utc::now().date_naive();
+            let start = end - chrono::Duration::days(7);
             (
-                Some(start.format("%Y-%m-%d").to_string()),
-                Some(end.format("%Y-%m-%d").to_string()),
+                Some(start),
+                Some(end),
                 "Last 7 Days".to_string(),
                 "7days".to_string(),
             )
         }
         Some("30days") => {
-            let end = Utc::now();
-            let start = end - Duration::days(30);
+            let end = Utc::now().date_naive();
+            let start = end - chrono::Duration::days(30);
             (
-                Some(start.format("%Y-%m-%d").to_string()),
-                Some(end.format("%Y-%m-%d").to_string()),
+                Some(start),
+                Some(end),
                 "Last 30 Days".to_string(),
                 "30days".to_string(),
             )
         }
         Some("custom") => (
-            params.start_date.clone(),
-            params.end_date.clone(),
+            params.start_date,
+            params.end_date,
             "Custom Range".to_string(),
             "custom".to_string(),
         ),
@@ -589,13 +589,10 @@ pub async fn admin_stats_dashboard(
     };
 
     // Get statistics
-    let aggregate_stats =
-        repository.get_aggregate_quiz_statistics(start_date.as_deref(), end_date.as_deref())?;
+    let aggregate_stats = repository.get_aggregate_quiz_statistics(start_date, end_date)?;
 
     let question_stats = repository.get_question_statistics(
-        start_date.as_deref(),
-        end_date.as_deref(),
-        None, // No limit
+        start_date, end_date, None, // No limit
         None, // No offset
     )?;
 
@@ -603,8 +600,8 @@ pub async fn admin_stats_dashboard(
         aggregate_stats,
         question_stats,
         current_filter: filter_name,
-        current_start_date: params.start_date.unwrap_or_default(),
-        current_end_date: params.end_date.unwrap_or_default(),
+        current_start_date: start_date.map(|d| d.to_string()).unwrap_or_default(),
+        current_end_date: end_date.map(|d| d.to_string()).unwrap_or_default(),
         current_filter_value: filter_value,
     };
 
@@ -632,26 +629,18 @@ pub async fn admin_question_detail_stats(
     // Determine date range based on filter (same logic as main stats dashboard)
     let (start_date, end_date, filter_name) = match params.filter.as_deref() {
         Some("7days") => {
-            let end = Utc::now();
-            let start = end - Duration::days(7);
-            (
-                Some(start.format("%Y-%m-%d").to_string()),
-                Some(end.format("%Y-%m-%d").to_string()),
-                "Last 7 Days".to_string(),
-            )
+            let end = Utc::now().date_naive();
+            let start = end - chrono::Duration::days(7);
+            (Some(start), Some(end), "Last 7 Days".to_string())
         }
         Some("30days") => {
-            let end = Utc::now();
-            let start = end - Duration::days(30);
-            (
-                Some(start.format("%Y-%m-%d").to_string()),
-                Some(end.format("%Y-%m-%d").to_string()),
-                "Last 30 Days".to_string(),
-            )
+            let end = Utc::now().date_naive();
+            let start = end - chrono::Duration::days(30);
+            (Some(start), Some(end), "Last 30 Days".to_string())
         }
         Some("custom") => (
-            params.start_date.clone(),
-            params.end_date.clone(),
+            params.start_date,
+            params.end_date,
             "Custom Range".to_string(),
         ),
         _ => (None, None, "All Time".to_string()),
@@ -659,7 +648,7 @@ pub async fn admin_question_detail_stats(
 
     // Get detailed question statistics
     let question_detail_stats = repository
-        .get_question_detail_statistics(&question_id, start_date.as_deref(), end_date.as_deref())?
+        .get_question_detail_statistics(&question_id, start_date, end_date)?
         .ok_or_else(|| AppError(color_eyre::eyre::eyre!("Question not found")))?;
 
     let context = QuestionDetailStatsContext {
@@ -685,34 +674,26 @@ pub async fn success_trends_chart(
     // Parse date range (same logic as stats dashboard)
     let (start_date, end_date) = match params.filter.as_deref() {
         Some("7days") => {
-            let end = Utc::now();
-            let start = end - Duration::days(7);
-            (
-                Some(start.format("%Y-%m-%d").to_string()),
-                Some(end.format("%Y-%m-%d").to_string()),
-            )
+            let end = Utc::now().date_naive();
+            let start = end - chrono::Duration::days(7);
+            (Some(start), Some(end))
         }
         Some("30days") => {
-            let end = Utc::now();
-            let start = end - Duration::days(30);
-            (
-                Some(start.format("%Y-%m-%d").to_string()),
-                Some(end.format("%Y-%m-%d").to_string()),
-            )
+            let end = Utc::now().date_naive();
+            let start = end - chrono::Duration::days(30);
+            (Some(start), Some(end))
         }
         Some("custom") => (params.start_date, params.end_date),
         _ => (None, None),
     };
 
     // Get daily attempts by difficulty data
-    let daily_attempts = repository.get_daily_attempts_by_difficulty(
-        start_date.as_deref(),
-        end_date.as_deref(),
-    )?;
+    let daily_attempts = repository.get_daily_attempts_by_difficulty(start_date, end_date)?;
 
     // Generate chart SVG
-    let svg_content = crate::charts::admin::AdminCharts::daily_attempts_by_difficulty(daily_attempts)
-        .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to generate chart: {}", e)))?;
+    let svg_content =
+        crate::charts::admin::AdminCharts::daily_attempts_by_difficulty(daily_attempts)
+            .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to generate chart: {}", e)))?;
 
     // Return SVG response with proper headers
     Ok(axum::response::Response::builder()
@@ -732,30 +713,21 @@ pub async fn difficulty_distribution_chart(
     // Parse date range (same logic as stats dashboard)
     let (start_date, end_date) = match params.filter.as_deref() {
         Some("7days") => {
-            let end = Utc::now();
-            let start = end - Duration::days(7);
-            (
-                Some(start.format("%Y-%m-%d").to_string()),
-                Some(end.format("%Y-%m-%d").to_string()),
-            )
+            let end = Utc::now().date_naive();
+            let start = end - chrono::Duration::days(7);
+            (Some(start), Some(end))
         }
         Some("30days") => {
-            let end = Utc::now();
-            let start = end - Duration::days(30);
-            (
-                Some(start.format("%Y-%m-%d").to_string()),
-                Some(end.format("%Y-%m-%d").to_string()),
-            )
+            let end = Utc::now().date_naive();
+            let start = end - chrono::Duration::days(30);
+            (Some(start), Some(end))
         }
         Some("custom") => (params.start_date, params.end_date),
         _ => (None, None),
     };
 
     // Get difficulty performance data
-    let performance = repository.get_difficulty_performance_summary(
-        start_date.as_deref(),
-        end_date.as_deref(),
-    )?;
+    let performance = repository.get_difficulty_performance_summary(start_date, end_date)?;
 
     // Generate chart SVG
     let svg_content = crate::charts::admin::AdminCharts::difficulty_distribution(performance)
@@ -778,39 +750,30 @@ pub async fn question_performance_chart(
 ) -> Result<axum::response::Response, AppError> {
     let limit = 10; // Default limit for question performance chart
 
-    // Parse date range (same logic as stats dashboard)  
+    // Parse date range (same logic as stats dashboard)
     let (start_date, end_date) = match params.filter.as_deref() {
         Some("7days") => {
-            let end = Utc::now();
-            let start = end - Duration::days(7);
-            (
-                Some(start.format("%Y-%m-%d").to_string()),
-                Some(end.format("%Y-%m-%d").to_string()),
-            )
+            let end = Utc::now().date_naive();
+            let start = end - chrono::Duration::days(7);
+            (Some(start), Some(end))
         }
         Some("30days") => {
-            let end = Utc::now();
-            let start = end - Duration::days(30);
-            (
-                Some(start.format("%Y-%m-%d").to_string()),
-                Some(end.format("%Y-%m-%d").to_string()),
-            )
+            let end = Utc::now().date_naive();
+            let start = end - chrono::Duration::days(30);
+            (Some(start), Some(end))
         }
         Some("custom") => (params.start_date, params.end_date),
         _ => (None, None),
     };
 
     // Get question statistics
-    let question_stats = repository.get_question_statistics(
-        start_date.as_deref(),
-        end_date.as_deref(),
-        Some(limit),
-        None,
-    )?;
+    let question_stats =
+        repository.get_question_statistics(start_date, end_date, Some(limit), None)?;
 
     // Generate chart SVG
-    let svg_content = crate::charts::admin::AdminCharts::question_performance(question_stats, limit)
-        .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to generate chart: {}", e)))?;
+    let svg_content =
+        crate::charts::admin::AdminCharts::question_performance(question_stats, limit)
+            .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to generate chart: {}", e)))?;
 
     // Return SVG response with proper headers
     Ok(axum::response::Response::builder()
@@ -831,20 +794,14 @@ pub async fn answer_distribution_chart(
     // Parse date range (same logic as stats dashboard)
     let (start_date, end_date) = match params.filter.as_deref() {
         Some("7days") => {
-            let end = Utc::now();
-            let start = end - Duration::days(7);
-            (
-                Some(start.format("%Y-%m-%d").to_string()),
-                Some(end.format("%Y-%m-%d").to_string()),
-            )
+            let end = Utc::now().date_naive();
+            let start = end - chrono::Duration::days(7);
+            (Some(start), Some(end))
         }
         Some("30days") => {
-            let end = Utc::now();
-            let start = end - Duration::days(30);
-            (
-                Some(start.format("%Y-%m-%d").to_string()),
-                Some(end.format("%Y-%m-%d").to_string()),
-            )
+            let end = Utc::now().date_naive();
+            let start = end - chrono::Duration::days(30);
+            (Some(start), Some(end))
         }
         Some("custom") => (params.start_date, params.end_date),
         _ => (None, None),
@@ -852,7 +809,7 @@ pub async fn answer_distribution_chart(
 
     // Get question details and answer distribution
     let question_detail_stats = repository
-        .get_question_detail_statistics(&question_id, start_date.as_deref(), end_date.as_deref())?
+        .get_question_detail_statistics(&question_id, start_date, end_date)?
         .ok_or_else(|| AppError(color_eyre::eyre::eyre!("Question not found")))?;
 
     // Generate chart SVG

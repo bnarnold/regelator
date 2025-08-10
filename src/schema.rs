@@ -42,8 +42,8 @@ diesel::table! {
         answer_text -> Text,
         is_correct -> Bool,
         sort_order -> Integer,
-        created_at -> Text,
-        updated_at -> Text,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -55,7 +55,7 @@ diesel::table! {
         selected_answer_id -> Nullable<Text>,
         is_correct -> Nullable<Bool>,
         response_time_ms -> Nullable<Integer>,
-        created_at -> Text,
+        created_at -> Timestamp,
     }
 }
 
@@ -64,7 +64,7 @@ diesel::table! {
         id -> Text,
         question_id -> Text,
         rule_id -> Text,
-        created_at -> Text,
+        created_at -> Timestamp,
     }
 }
 
@@ -76,8 +76,8 @@ diesel::table! {
         question_text -> Text,
         explanation -> Text,
         difficulty_level -> Text,
-        created_at -> Text,
-        updated_at -> Text,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
         status -> Text,
     }
 }

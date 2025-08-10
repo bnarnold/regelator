@@ -594,6 +594,53 @@ struct SessionStatsView { ... }
 - **Clear Navigation**: "Start over" option available when needed
 - **Progress Visibility**: Users can see completion status at a glance
 
+### Timestamp Consistency and Date Validation
+
+**What worked well:**
+- Chrono's serde integration provides automatic date validation at deserialization layer
+- Database migration approach preserves existing data while changing schema types
+- Using `NaiveDate.and_hms_opt()` to convert dates to datetime ranges for filtering
+- "Less than start of next day" approach handles milliseconds correctly
+- Repository method signatures with `Option<chrono::NaiveDate>` provide type safety
+
+**What to improve:**
+- Should have used proper timestamp types from the beginning
+- String-based date manipulation was error-prone and difficult to maintain
+- Manual date parsing scattered throughout handlers created maintenance burden
+
+**Technical debt resolved:**
+- Eliminated: String-based timestamp storage in quiz tables
+- Eliminated: Manual string parsing and formatting for date operations  
+- Eliminated: Inconsistent date handling between different table schemas
+- Created: Comprehensive date validation pipeline from URL parameters to database
+- Created: Type-safe date filtering with proper datetime range conversion
+
+**Key decisions:**
+- Used database migration to convert TEXT timestamps to TIMESTAMP types
+- Implemented validation at HTTP parameter deserialization boundary
+- Repository methods now accept validated `chrono::NaiveDate` types directly
+- Date filtering uses proper datetime ranges (start of day to start of next day)
+
+**Architecture Lessons:**
+- **Early Validation**: Validate data types as early as possible in the request pipeline
+- **Type Safety**: Use strong types (chrono::NaiveDate) instead of stringly-typed data
+- **Database Schema**: Use proper database types rather than storing dates as text
+- **Migration Strategy**: Database migrations can safely convert data types with proper conversion
+- **Serde Integration**: Leverage library features (Chrono's serde) for automatic validation
+
+**Production Benefits:**
+- **Better UX**: Invalid dates in URLs return clear HTTP 400 errors immediately
+- **Type Safety**: No runtime date parsing errors - all validation happens at request boundary
+- **Performance**: Proper database indexes on timestamp columns for efficient filtering
+- **Maintainability**: Centralized date handling logic eliminates scattered parsing code
+- **Data Integrity**: Consistent timestamp handling across all analytics and reporting
+
+**Data Visualization Enablement:**
+- **Temporal Charts**: Real date types enable proper time-series visualizations
+- **Date Filtering**: Analytics dashboards can reliably filter by date ranges
+- **Chart Libraries**: Integration with charming/Apache ECharts now has clean date data
+- **Export Formats**: CSV and Parquet exports will have properly typed date columns
+
 ---
 
-*Last updated: 2025-08-08*
+*Last updated: 2025-08-10*

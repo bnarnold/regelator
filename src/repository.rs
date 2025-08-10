@@ -1031,8 +1031,8 @@ impl RuleRepository {
     /// Get question statistics with optional date filtering
     pub fn get_question_statistics(
         &self,
-        start_date: Option<&str>,
-        end_date: Option<&str>,
+        start_date: Option<chrono::NaiveDate>,
+        end_date: Option<chrono::NaiveDate>,
         limit: Option<usize>,
         offset: Option<usize>,
     ) -> Result<Vec<crate::models::QuestionStatistics>> {
@@ -1054,10 +1054,13 @@ impl RuleRepository {
         let mut attempts_query = qa_dsl::quiz_attempts.into_boxed();
 
         if let Some(start) = start_date {
-            attempts_query = attempts_query.filter(qa_dsl::created_at.ge(start));
+            let start_datetime = start.and_hms_opt(0, 0, 0).unwrap();
+            attempts_query = attempts_query.filter(qa_dsl::created_at.ge(start_datetime));
         }
         if let Some(end) = end_date {
-            attempts_query = attempts_query.filter(qa_dsl::created_at.le(end));
+            let next_day = end + chrono::Duration::days(1);
+            let end_datetime = next_day.and_hms_opt(0, 0, 0).unwrap();
+            attempts_query = attempts_query.filter(qa_dsl::created_at.lt(end_datetime));
         }
 
         // Get filtered attempts
@@ -1132,8 +1135,8 @@ impl RuleRepository {
     /// Get aggregate statistics across all quiz activity
     pub fn get_aggregate_quiz_statistics(
         &self,
-        start_date: Option<&str>,
-        end_date: Option<&str>,
+        start_date: Option<chrono::NaiveDate>,
+        end_date: Option<chrono::NaiveDate>,
     ) -> Result<crate::models::AggregateStatistics> {
         use crate::schema::quiz_attempts::dsl as qa_dsl;
         use crate::schema::quiz_questions::dsl as qq_dsl;
@@ -1153,10 +1156,13 @@ impl RuleRepository {
         let mut attempts_query = qa_dsl::quiz_attempts.into_boxed();
 
         if let Some(start) = start_date {
-            attempts_query = attempts_query.filter(qa_dsl::created_at.ge(start));
+            let start_datetime = start.and_hms_opt(0, 0, 0).unwrap();
+            attempts_query = attempts_query.filter(qa_dsl::created_at.ge(start_datetime));
         }
         if let Some(end) = end_date {
-            attempts_query = attempts_query.filter(qa_dsl::created_at.le(end));
+            let next_day = end + chrono::Duration::days(1);
+            let end_datetime = next_day.and_hms_opt(0, 0, 0).unwrap();
+            attempts_query = attempts_query.filter(qa_dsl::created_at.lt(end_datetime));
         }
 
         // Get attempt statistics
@@ -1191,8 +1197,8 @@ impl RuleRepository {
             total_sessions,
             overall_success_rate,
             most_attempted_difficulty,
-            date_range_start: start_date.map(|s| s.to_string()),
-            date_range_end: end_date.map(|s| s.to_string()),
+            date_range_start: start_date,
+            date_range_end: end_date,
         })
     }
 
@@ -1200,8 +1206,8 @@ impl RuleRepository {
     pub fn get_question_detail_statistics(
         &self,
         question_id: &str,
-        start_date: Option<&str>,
-        end_date: Option<&str>,
+        start_date: Option<chrono::NaiveDate>,
+        end_date: Option<chrono::NaiveDate>,
     ) -> Result<Option<crate::models::quiz::QuestionDetailStats>> {
         use crate::schema::quiz_answers::dsl as qa_dsl;
         use crate::schema::quiz_attempts::dsl as qat_dsl;
@@ -1224,10 +1230,13 @@ impl RuleRepository {
             .into_boxed();
 
         if let Some(start) = start_date {
-            attempts_query = attempts_query.filter(qat_dsl::created_at.ge(start));
+            let start_datetime = start.and_hms_opt(0, 0, 0).unwrap();
+            attempts_query = attempts_query.filter(qat_dsl::created_at.ge(start_datetime));
         }
         if let Some(end) = end_date {
-            attempts_query = attempts_query.filter(qat_dsl::created_at.le(end));
+            let next_day = end + chrono::Duration::days(1);
+            let end_datetime = next_day.and_hms_opt(0, 0, 0).unwrap();
+            attempts_query = attempts_query.filter(qat_dsl::created_at.lt(end_datetime));
         }
 
         // Get all attempts for this question
@@ -1265,10 +1274,15 @@ impl RuleRepository {
             .into_boxed();
 
         if let Some(start) = start_date {
-            recent_attempts_query = recent_attempts_query.filter(qat_dsl::created_at.ge(start));
+            let start_datetime = start.and_hms_opt(0, 0, 0).unwrap();
+            recent_attempts_query =
+                recent_attempts_query.filter(qat_dsl::created_at.ge(start_datetime));
         }
         if let Some(end) = end_date {
-            recent_attempts_query = recent_attempts_query.filter(qat_dsl::created_at.le(end));
+            let next_day = end + chrono::Duration::days(1);
+            let end_datetime = next_day.and_hms_opt(0, 0, 0).unwrap();
+            recent_attempts_query =
+                recent_attempts_query.filter(qat_dsl::created_at.lt(end_datetime));
         }
 
         let recent_attempts = recent_attempts_query
@@ -1284,7 +1298,13 @@ impl RuleRepository {
             ))
             .order(qat_dsl::created_at.desc())
             .limit(20)
-            .load::<(String, Option<String>, Option<bool>, Option<i32>, String)>(&mut conn)
+            .load::<(
+                String,
+                Option<String>,
+                Option<bool>,
+                Option<i32>,
+                chrono::NaiveDateTime,
+            )>(&mut conn)
             .wrap_err("Failed to load recent attempts")?;
 
         let recent_attempts_structured: Vec<crate::models::quiz::RecentAttempt> = recent_attempts
@@ -1318,8 +1338,8 @@ impl RuleRepository {
     pub fn get_answer_distribution(
         &self,
         question_id: &str,
-        start_date: Option<&str>,
-        end_date: Option<&str>,
+        start_date: Option<chrono::NaiveDate>,
+        end_date: Option<chrono::NaiveDate>,
     ) -> Result<Vec<crate::models::quiz::AnswerDistribution>> {
         use crate::schema::quiz_answers::dsl as qa_dsl;
         use crate::schema::quiz_attempts::dsl as qat_dsl;
@@ -1343,10 +1363,13 @@ impl RuleRepository {
             .into_boxed();
 
         if let Some(start) = start_date {
-            attempts_query = attempts_query.filter(qat_dsl::created_at.ge(start));
+            let start_datetime = start.and_hms_opt(0, 0, 0).unwrap();
+            attempts_query = attempts_query.filter(qat_dsl::created_at.ge(start_datetime));
         }
         if let Some(end) = end_date {
-            attempts_query = attempts_query.filter(qat_dsl::created_at.le(end));
+            let next_day = end + chrono::Duration::days(1);
+            let end_datetime = next_day.and_hms_opt(0, 0, 0).unwrap();
+            attempts_query = attempts_query.filter(qat_dsl::created_at.lt(end_datetime));
         }
 
         // Get all attempts for this question
@@ -1389,8 +1412,8 @@ impl RuleRepository {
     /// Get daily attempts by difficulty with success/fail breakdown for stacked area chart
     pub fn get_daily_attempts_by_difficulty(
         &self,
-        start_date: Option<&str>,
-        end_date: Option<&str>,
+        start_date: Option<chrono::NaiveDate>,
+        end_date: Option<chrono::NaiveDate>,
     ) -> Result<Vec<crate::models::quiz::DailyAttemptsByDifficulty>> {
         use crate::schema::quiz_attempts::dsl as qa_dsl;
         use crate::schema::quiz_questions::dsl as qq_dsl;
@@ -1406,39 +1429,44 @@ impl RuleRepository {
             .load::<(String, String)>(&mut conn)
             .wrap_err("Failed to load questions for difficulty mapping")?;
 
-        let question_difficulty: std::collections::HashMap<String, String> = questions
-            .into_iter()
-            .collect();
+        let question_difficulty: std::collections::HashMap<String, String> =
+            questions.into_iter().collect();
 
         // Build attempts query with date filtering
         let mut attempts_query = qa_dsl::quiz_attempts.into_boxed();
-        
+
         if let Some(start) = start_date {
-            attempts_query = attempts_query.filter(qa_dsl::created_at.ge(start));
+            let start_datetime = start.and_hms_opt(0, 0, 0).unwrap();
+            attempts_query = attempts_query.filter(qa_dsl::created_at.ge(start_datetime));
         }
         if let Some(end) = end_date {
-            attempts_query = attempts_query.filter(qa_dsl::created_at.le(end));
+            let next_day = end + chrono::Duration::days(1);
+            let end_datetime = next_day.and_hms_opt(0, 0, 0).unwrap();
+            attempts_query = attempts_query.filter(qa_dsl::created_at.lt(end_datetime));
         }
 
         // Get all attempts in date range
         let attempts = attempts_query
             .select((qa_dsl::created_at, qa_dsl::question_id, qa_dsl::is_correct))
-            .load::<(String, String, Option<bool>)>(&mut conn)
+            .load::<(chrono::NaiveDateTime, String, Option<bool>)>(&mut conn)
             .wrap_err("Failed to load quiz attempts for difficulty breakdown")?;
 
         // Group by date and difficulty, counting success/fail
-        let mut daily_stats: std::collections::HashMap<String, std::collections::HashMap<String, (usize, usize)>> = 
-            std::collections::HashMap::new();
+        let mut daily_stats: std::collections::HashMap<
+            chrono::NaiveDate,
+            std::collections::HashMap<String, (usize, usize)>,
+        > = std::collections::HashMap::new();
 
         for (created_at, question_id, is_correct) in attempts {
             // Extract just the date part (YYYY-MM-DD)
-            let date = created_at.split('T').next().unwrap_or(&created_at).to_string();
-            
+            let date = created_at.date();
+
             // Get difficulty for this question
             if let Some(difficulty) = question_difficulty.get(&question_id) {
                 let date_stats = daily_stats.entry(date).or_default();
-                let (success_count, fail_count) = date_stats.entry(difficulty.clone()).or_insert((0, 0));
-                
+                let (success_count, fail_count) =
+                    date_stats.entry(difficulty.clone()).or_insert((0, 0));
+
                 if is_correct == Some(true) {
                     *success_count += 1;
                 } else {
@@ -1454,10 +1482,13 @@ impl RuleRepository {
                 let difficulty_attempts = difficulty_stats
                     .into_iter()
                     .map(|(difficulty, (success_count, fail_count))| {
-                        (difficulty, crate::models::quiz::DifficultyAttemptBreakdown {
-                            success_count,
-                            fail_count,
-                        })
+                        (
+                            difficulty,
+                            crate::models::quiz::DifficultyAttemptBreakdown {
+                                success_count,
+                                fail_count,
+                            },
+                        )
                     })
                     .collect();
 
@@ -1475,11 +1506,11 @@ impl RuleRepository {
     /// Get difficulty performance summary for chart display
     pub fn get_difficulty_performance_summary(
         &self,
-        start_date: Option<&str>,
-        end_date: Option<&str>,
+        start_date: Option<chrono::NaiveDate>,
+        end_date: Option<chrono::NaiveDate>,
     ) -> Result<Vec<crate::models::quiz::DifficultyPerformance>> {
-        use crate::schema::quiz_questions::dsl as qq_dsl;
         use crate::schema::quiz_attempts::dsl as qa_dsl;
+        use crate::schema::quiz_questions::dsl as qq_dsl;
 
         let mut conn = self
             .pool
@@ -1494,12 +1525,15 @@ impl RuleRepository {
 
         // Build attempts query with date filtering
         let mut attempts_query = qa_dsl::quiz_attempts.into_boxed();
-        
+
         if let Some(start) = start_date {
-            attempts_query = attempts_query.filter(qa_dsl::created_at.ge(start));
+            let start_datetime = start.and_hms_opt(0, 0, 0).unwrap();
+            attempts_query = attempts_query.filter(qa_dsl::created_at.ge(start_datetime));
         }
         if let Some(end) = end_date {
-            attempts_query = attempts_query.filter(qa_dsl::created_at.le(end));
+            let next_day = end + chrono::Duration::days(1);
+            let end_datetime = next_day.and_hms_opt(0, 0, 0).unwrap();
+            attempts_query = attempts_query.filter(qa_dsl::created_at.lt(end_datetime));
         }
 
         let attempts = attempts_query
@@ -1508,18 +1542,18 @@ impl RuleRepository {
             .wrap_err("Failed to load attempts for difficulty analysis")?;
 
         // Create question_id to difficulty mapping
-        let question_difficulty: std::collections::HashMap<String, String> = questions
-            .into_iter()
-            .collect();
+        let question_difficulty: std::collections::HashMap<String, String> =
+            questions.into_iter().collect();
 
         // Group attempts by difficulty
-        let mut difficulty_stats: std::collections::HashMap<String, (usize, usize, usize)> = 
+        let mut difficulty_stats: std::collections::HashMap<String, (usize, usize, usize)> =
             std::collections::HashMap::new();
 
         for (question_id, is_correct) in attempts {
             if let Some(difficulty) = question_difficulty.get(&question_id) {
-                let (_question_count, total_attempts, correct_attempts) = 
-                    difficulty_stats.entry(difficulty.clone()).or_insert((0, 0, 0));
+                let (_question_count, total_attempts, correct_attempts) = difficulty_stats
+                    .entry(difficulty.clone())
+                    .or_insert((0, 0, 0));
                 *total_attempts += 1;
                 if is_correct == Some(true) {
                     *correct_attempts += 1;
@@ -1528,7 +1562,7 @@ impl RuleRepository {
         }
 
         // Count unique questions per difficulty
-        let mut question_counts: std::collections::HashMap<String, usize> = 
+        let mut question_counts: std::collections::HashMap<String, usize> =
             std::collections::HashMap::new();
         for (_, difficulty) in question_difficulty {
             *question_counts.entry(difficulty).or_insert(0) += 1;
@@ -1538,13 +1572,13 @@ impl RuleRepository {
         let mut performance: Vec<crate::models::quiz::DifficultyPerformance> = difficulty_stats
             .into_iter()
             .map(|(difficulty, (_, total_attempts, correct_attempts))| {
-                let success_rate = if total_attempts > 0 { 
-                    (correct_attempts as f64 / total_attempts as f64) * 100.0 
-                } else { 
-                    0.0 
+                let success_rate = if total_attempts > 0 {
+                    (correct_attempts as f64 / total_attempts as f64) * 100.0
+                } else {
+                    0.0
                 };
                 let question_count = question_counts.get(&difficulty).unwrap_or(&0);
-                
+
                 crate::models::quiz::DifficultyPerformance {
                     difficulty,
                     question_count: *question_count,
@@ -1555,15 +1589,15 @@ impl RuleRepository {
             .collect();
 
         // Sort by difficulty level (beginner, intermediate, advanced)
-        performance.sort_by(|a, b| {
-            match (a.difficulty.as_str(), b.difficulty.as_str()) {
+        performance.sort_by(
+            |a, b| match (a.difficulty.as_str(), b.difficulty.as_str()) {
                 ("beginner", _) => std::cmp::Ordering::Less,
                 ("advanced", _) => std::cmp::Ordering::Greater,
                 ("intermediate", "beginner") => std::cmp::Ordering::Greater,
                 ("intermediate", "advanced") => std::cmp::Ordering::Less,
                 _ => a.difficulty.cmp(&b.difficulty),
-            }
-        });
+            },
+        );
 
         Ok(performance)
     }
