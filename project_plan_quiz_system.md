@@ -429,8 +429,8 @@ EXPLAIN: After a contested foul, play resumes with the stall count at the count 
 - Success rate calculation and difficulty assessment
 - Seamless navigation flow for Fred's workflow
 
-#### **Subtask 7.3: Chart Integration with Charming Library** 🏗️ **IN PROGRESS**
-**Priority:** Medium | **Effort:** 2-3 days
+#### **Subtask 7.3: Chart Integration with Charming Library** ✅ **COMPLETED**
+**Priority:** Medium | **Effort:** 2-3 days | **Completed:** 2025-08-10
 
 **Technical Debt Resolved**: ✅ **COMPLETED 2025-08-10** - Fixed timestamp consistency throughout application
 - [x] Migrated quiz table timestamps from TEXT to proper TIMESTAMP types
@@ -441,19 +441,31 @@ EXPLAIN: After a contested foul, play resumes with the stall count at the count 
 - [x] Eliminated string-based date manipulation throughout handlers and repository layers
 
 **Acceptance Criteria:**
-- [ ] Integrate charming crate for Apache ECharts server-side rendering
-- [ ] Add success rate trend chart (line chart over time)
-- [ ] Create difficulty distribution chart (bar chart)
-- [ ] Build question performance comparison chart
-- [ ] Add answer distribution pie charts for question detail view
-- [ ] Implement responsive chart sizing
-- [ ] Add chart export as SVG/PNG functionality
+- [x] Integrate charming crate for Apache ECharts server-side rendering
+- [x] Add success rate trend chart (line chart over time)
+- [x] Create difficulty distribution chart (bar chart)
+- [x] Build question performance comparison chart
+- [x] Add answer distribution pie charts for question detail view
+- [x] Implement responsive chart sizing
+- [x] Add chart export as SVG/PNG functionality
+- [x] Implement dark mode theming support via Client Hints and query parameters
+- [x] Add `Sec-CH-Prefers-Color-Scheme` Client Hints header detection
+- [x] Support `?theme=light|dark` query parameters for bookmarkable chart URLs
+- [x] Add `Accept-CH` header to admin stats pages for Client Hints opt-in
+- [x] Integrate ECharts default dark theme for consistent dark mode experience
 
 **Technical Implementation:**
 - Add `charming` crate dependency
 - New repository methods: `get_success_rate_trends()`, `get_difficulty_distribution()`
 - Chart types: Line (trends), Bar (distribution), Pie (answers), Heatmap (activity patterns)
 - Extend existing handlers with chart generation functions
+- **Dark Mode Theming System:**
+  - Theme detection: Primary via `?theme=` query parameter, fallback to `Sec-CH-Prefers-Color-Scheme` header
+  - ChartTheme module enhancement to support `Theme::Light` and `Theme::Dark` enum
+  - Chart handlers extract theme from HeaderMap and query parameters
+  - Admin stats pages send `Accept-CH: Sec-CH-Prefers-Color-Scheme` header for Client Hints opt-in
+  - Generate theme-aware chart URLs for bookmarkable dark/light mode charts
+  - Use ECharts built-in dark theme instead of manual color definitions for consistency
 
 #### **Subtask 7.4: CSV Export Functionality** 🎯
 **Priority:** Medium | **Effort:** 0.5 days
@@ -505,6 +517,11 @@ EXPLAIN: After a contested foul, play resumes with the stall count at the count 
 - Server-side chart rendering for consistent performance
 - Multiple export formats for different use cases
 - Data-driven educational content decisions for Fred
+- **Enhanced User Experience with Dark Mode Support:**
+  - Automatic theme detection respects user's system preferences
+  - Bookmarkable chart URLs with explicit theme parameter for sharing
+  - Consistent visual experience matching Pico CSS dark mode
+  - Professional chart appearance in both light and dark themes
 
 ### Story 8: Advanced Quiz Features 🎯
 **Goal:** Add scenario-based questions and advanced quiz modes
