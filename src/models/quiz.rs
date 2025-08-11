@@ -1,11 +1,11 @@
 use std::str::FromStr;
 
+use diesel::FromSqlRow;
 use diesel::deserialize::{FromSql, Result as DeserializeResult};
 use diesel::expression::AsExpression;
 use diesel::prelude::*;
 use diesel::serialize::{Output, Result as SerializeResult, ToSql};
 use diesel::sqlite::Sqlite;
-use diesel::FromSqlRow;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

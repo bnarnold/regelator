@@ -232,6 +232,35 @@ Claude: "Great! Marking Story X.Y as completed. Moving to next story..."
 - Suggest ad-hoc LLM processing for one-time content transformations
 - Document the decision rationale in `technical_considerations.md`
 
+## Handling Unfamiliar Libraries and APIs
+
+### When Claude Encounters Unknown Libraries
+
+**Red Flags - Stop and Ask for Help:**
+- Compilation errors for imports that should exist according to documentation
+- Making assumptions about API methods or structures
+- Working around library features instead of using them properly
+- Implementing manual solutions for problems the library likely solves
+
+### Required Actions
+
+**Claude should immediately:**
+1. **Acknowledge knowledge gaps**: "I'm not familiar with [library] - can you help me understand how it handles [feature]?"
+2. **Ask for API guidance**: "What's the idiomatic way to [accomplish task] in [library]?"
+3. **Request documentation review**: "Should we check the [library] docs together to find the right approach?"
+4. **Avoid assumptions**: Don't guess at API methods or try workarounds first
+
+### Example Phrases
+- "I see we're using [library] but I'm not familiar with its API. Can you show me the correct approach?"
+- "This compilation error suggests I don't understand how [library] works - can you guide me?"
+- "Rather than guessing at the API, should we look at [library]'s documentation together?"
+
+### Benefits
+- Faster solutions using library's intended patterns
+- Better knowledge transfer between human and AI
+- Avoids implementation debt from workarounds
+- Leverages human expertise with project-specific tools
+
 ## Success Metrics
 
 - Stories completed per session

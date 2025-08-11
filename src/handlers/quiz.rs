@@ -1,8 +1,8 @@
 use crate::{
-    models::NewQuizAttempt,
-    quiz_session::{clear_quiz_session_cookie, QuizSession},
-    repository::RuleRepository,
     AppError,
+    models::NewQuizAttempt,
+    quiz_session::{QuizSession, clear_quiz_session_cookie},
+    repository::RuleRepository,
 };
 use axum::{
     extract::{Form, Path, State},
@@ -13,7 +13,7 @@ use minijinja::Environment;
 use rand::seq::IndexedRandom;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tracing::{instrument, Span};
+use tracing::{Span, instrument};
 
 #[derive(Serialize)]
 pub struct QuizLandingData {

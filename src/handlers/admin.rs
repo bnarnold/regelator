@@ -1,6 +1,7 @@
+use crate::extractors::Theme;
 use crate::models::QuestionStatus;
-use crate::{repository::RuleRepository, AppError};
-use argon2::password_hash::{rand_core::OsRng, SaltString};
+use crate::{AppError, repository::RuleRepository};
+use argon2::password_hash::{SaltString, rand_core::OsRng};
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use axum::{
     extract::{Path, State},
@@ -9,12 +10,12 @@ use axum::{
 use axum_extra::extract::{CookieJar, Form, Query};
 use chrono::Utc;
 use minijinja::Environment;
-use regelator::auth::{clear_admin_cookie, create_admin_cookie, AdminToken};
+use regelator::auth::{AdminToken, clear_admin_cookie, create_admin_cookie};
 use regelator::config::Config;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::sync::Arc;
-use tracing::{instrument, Span};
+use tracing::{Span, instrument};
 
 // Admin authentication structures
 #[derive(Deserialize)]
@@ -669,6 +670,7 @@ pub async fn admin_question_detail_stats(
 pub async fn success_trends_chart(
     State(repository): State<RuleRepository>,
     _admin: AdminToken,
+    theme: Theme,
     Query(params): Query<StatsQueryParams>,
 ) -> Result<axum::response::Response, AppError> {
     // Parse date range (same logic as stats dashboard)
@@ -692,7 +694,7 @@ pub async fn success_trends_chart(
 
     // Generate chart SVG
     let svg_content =
-        crate::charts::admin::AdminCharts::daily_attempts_by_difficulty(daily_attempts)
+        crate::charts::admin::AdminCharts::daily_attempts_by_difficulty(daily_attempts, theme)
             .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to generate chart: {}", e)))?;
 
     // Return SVG response with proper headers
@@ -708,6 +710,7 @@ pub async fn success_trends_chart(
 pub async fn difficulty_distribution_chart(
     State(repository): State<RuleRepository>,
     _admin: AdminToken,
+    theme: Theme,
     Query(params): Query<StatsQueryParams>,
 ) -> Result<axum::response::Response, AppError> {
     // Parse date range (same logic as stats dashboard)
@@ -730,8 +733,9 @@ pub async fn difficulty_distribution_chart(
     let performance = repository.get_difficulty_performance_summary(start_date, end_date)?;
 
     // Generate chart SVG
-    let svg_content = crate::charts::admin::AdminCharts::difficulty_distribution(performance)
-        .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to generate chart: {}", e)))?;
+    let svg_content =
+        crate::charts::admin::AdminCharts::difficulty_distribution(performance, theme)
+            .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to generate chart: {}", e)))?;
 
     // Return SVG response with proper headers
     Ok(axum::response::Response::builder()
@@ -746,6 +750,7 @@ pub async fn difficulty_distribution_chart(
 pub async fn question_performance_chart(
     State(repository): State<RuleRepository>,
     _admin: AdminToken,
+    theme: Theme,
     Query(params): Query<StatsQueryParams>,
 ) -> Result<axum::response::Response, AppError> {
     let limit = 10; // Default limit for question performance chart
@@ -772,7 +777,7 @@ pub async fn question_performance_chart(
 
     // Generate chart SVG
     let svg_content =
-        crate::charts::admin::AdminCharts::question_performance(question_stats, limit)
+        crate::charts::admin::AdminCharts::question_performance(question_stats, limit, theme)
             .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to generate chart: {}", e)))?;
 
     // Return SVG response with proper headers
@@ -788,6 +793,7 @@ pub async fn question_performance_chart(
 pub async fn answer_distribution_chart(
     State(repository): State<RuleRepository>,
     _admin: AdminToken,
+    theme: Theme,
     Path(question_id): Path<String>,
     Query(params): Query<StatsQueryParams>,
 ) -> Result<axum::response::Response, AppError> {
@@ -816,6 +822,7 @@ pub async fn answer_distribution_chart(
     let svg_content = crate::charts::admin::AdminCharts::answer_distribution(
         &question_detail_stats.question.question_text,
         question_detail_stats.answer_distribution,
+        theme,
     )
     .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to generate chart: {}", e)))?;
 

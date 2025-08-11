@@ -1,4 +1,4 @@
-use color_eyre::{eyre::WrapErr, Result};
+use color_eyre::{Result, eyre::WrapErr};
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::sqlite::SqliteConnection;
 use regex::Regex;
@@ -44,8 +44,8 @@ fn read_definitions_from_stdin() -> Result<Vec<DefinitionData>> {
         // Check if this line starts a new definition
         if let Some(caps) = term_start_pattern.captures(line) {
             // Save the previous definition if we have one
-            if let Some(term) = current_term.take() {
-                if !current_definition.trim().is_empty() {
+            if let Some(term) = current_term.take()
+                && !current_definition.trim().is_empty() {
                     let slug = generate_slug(&term);
                     definitions.push(DefinitionData {
                         term,
@@ -53,7 +53,6 @@ fn read_definitions_from_stdin() -> Result<Vec<DefinitionData>> {
                         definition: current_definition.trim().to_string(),
                     });
                 }
-            }
 
             // Start new definition
             current_term = Some(caps.get(1).unwrap().as_str().trim().to_string());
@@ -70,8 +69,8 @@ fn read_definitions_from_stdin() -> Result<Vec<DefinitionData>> {
     }
 
     // Don't forget the last definition
-    if let Some(term) = current_term {
-        if !current_definition.trim().is_empty() {
+    if let Some(term) = current_term
+        && !current_definition.trim().is_empty() {
             let slug = generate_slug(&term);
             definitions.push(DefinitionData {
                 term,
@@ -79,7 +78,6 @@ fn read_definitions_from_stdin() -> Result<Vec<DefinitionData>> {
                 definition: current_definition.trim().to_string(),
             });
         }
-    }
 
     Ok(definitions)
 }
@@ -236,7 +234,10 @@ mod tests {
         assert_eq!(definitions.len(), 1);
         assert_eq!(definitions[0].term, "Affect the play");
         assert_eq!(definitions[0].slug, "affect-the-play");
-        assert_eq!(definitions[0].definition, "A breach or call affects the play if it is reasonable to assume that the outcome of the specific play may have been meaningfully different had the breach or call not occurred.");
+        assert_eq!(
+            definitions[0].definition,
+            "A breach or call affects the play if it is reasonable to assume that the outcome of the specific play may have been meaningfully different had the breach or call not occurred."
+        );
     }
 
     #[test]
@@ -248,7 +249,10 @@ mod tests {
         assert_eq!(definitions.len(), 1);
         assert_eq!(definitions[0].term, "Ultimate Frisbee");
         assert_eq!(definitions[0].slug, "ultimate-frisbee");
-        assert_eq!(definitions[0].definition, "A sport played by two teams\nof seven players each on a rectangular field\nwith end zones at each end.");
+        assert_eq!(
+            definitions[0].definition,
+            "A sport played by two teams\nof seven players each on a rectangular field\nwith end zones at each end."
+        );
     }
 
     #[test]

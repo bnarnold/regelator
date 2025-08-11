@@ -1,7 +1,7 @@
 use crate::{
+    AppError,
     models::{Rule, RuleContent},
     repository::RuleRepository,
-    AppError,
 };
 use axum::{
     extract::{Path, Query, State},

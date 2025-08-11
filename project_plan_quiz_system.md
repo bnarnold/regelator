@@ -372,7 +372,7 @@ EXPLAIN: After a contested foul, play resumes with the stall count at the count 
 ### Story 7: Usage Statistics Analysis & Reporting (Fred) 🏗️
 **Goal:** Provide Fred with insights for educational planning and content improvement
 
-**Implementation Status:** In Progress - 3/5 subtasks completed (Foundation, Question Detail View & Statistics Infrastructure complete)
+**Implementation Status:** In Progress - 3/5 subtasks completed (Foundation, Question Detail View, Chart Theme Control & Statistics Infrastructure complete)
 
 #### **Subtask 7.1: Basic Statistics Infrastructure & Text Tables** ✅ **COMPLETED**
 **Priority:** High (Foundation) | **Effort:** 1-2 days | **Completed:** 2025-08-09
@@ -522,6 +522,35 @@ EXPLAIN: After a contested foul, play resumes with the stall count at the count 
   - Bookmarkable chart URLs with explicit theme parameter for sharing
   - Consistent visual experience matching Pico CSS dark mode
   - Professional chart appearance in both light and dark themes
+
+### Chart Theme Control Implementation Complete ✅ 
+**Achievement:** Completed browser-based theme detection for admin analytics charts (2025-08-11)
+
+**Technical Implementation:**
+- **Theme Detection Middleware**: Added `Accept-CH: Sec-CH-Prefers-Color-Scheme` header to enable Client Hints
+- **Theme Extractor**: Custom axum extractor detecting browser dark/light mode preference from Client Hints headers  
+- **Charming Integration**: Proper use of charming library's built-in theme system (`CharmingTheme::Default`/`Dark`)
+- **Chart Handler Updates**: All analytics chart endpoints now auto-adapt to user's browser theme
+- **Seamless Experience**: No user interaction required - automatically follows OS/browser dark mode setting
+
+**Files Modified:**
+- `src/middleware/theme.rs` - Client Hints middleware for theme detection
+- `src/extractors/theme.rs` - Theme preference extraction from browser headers
+- `src/charts/mod.rs` - Enhanced ChartGenerator with theme support
+- `src/charts/admin.rs` - Updated all chart functions to accept theme parameter
+- `src/handlers/admin.rs` - Added Theme extractor to chart endpoints
+- `src/main.rs` - Registered middleware and modules
+
+**Benefits Delivered:**
+- Professional dark mode charts matching user's system preferences
+- Clean architecture using charming's intended theming patterns
+- Enhanced accessibility for users preferring dark mode interfaces
+- Automatic theme detection without manual toggles or configuration
+
+**Pair Programming Learning:**
+- Added new section to pair programming guide about handling unfamiliar libraries
+- Emphasized importance of acknowledging knowledge gaps early
+- Documented approach for collaborative API exploration and proper library usage
 
 ### Story 8: Advanced Quiz Features 🎯
 **Goal:** Add scenario-based questions and advanced quiz modes

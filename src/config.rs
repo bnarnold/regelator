@@ -1,5 +1,5 @@
 use config::{Config as ConfigBuilder, ConfigError, Environment, File};
-use serde::{de, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, de};
 use std::{env, str::FromStr};
 use tracing::Level;
 

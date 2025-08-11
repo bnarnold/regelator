@@ -1,7 +1,9 @@
-use super::{ChartGenerator, ChartTheme};
+use super::ChartGenerator;
+use crate::extractors::Theme;
 use crate::models::{
     AnswerDistribution, DailyAttemptsByDifficulty, DifficultyPerformance, QuestionStatistics,
 };
+use charming::Chart;
 use charming::{
     component::{Axis, Grid, Legend, Title},
     element::{AxisType, NameLocation, Tooltip, Trigger},
@@ -16,17 +18,18 @@ impl AdminCharts {
     /// Generate stacked area chart showing daily attempts by difficulty with success/fail breakdown
     pub fn daily_attempts_by_difficulty(
         daily_data: Vec<DailyAttemptsByDifficulty>,
+        theme: Theme,
     ) -> Result<String> {
         // Handle empty data case
         if daily_data.is_empty() {
-            let chart = ChartTheme::base_config()
+            let chart = Chart::new()
                 .title(
                     Title::new()
                         .text("Daily Quiz Attempts by Difficulty - No Data Available")
                         .left("center"),
                 )
                 .series(Line::new().name("No Data").data(vec![0.0]));
-            return ChartGenerator::generate_svg(chart);
+            return ChartGenerator::generate_svg(chart, theme);
         }
 
         // Extract dates for x-axis
@@ -88,7 +91,7 @@ impl AdminCharts {
             );
         }
 
-        let chart = ChartTheme::base_config()
+        let chart = Chart::new()
             .title(
                 Title::new()
                     .text("Daily Quiz Attempts by Difficulty Level")
@@ -126,21 +129,24 @@ impl AdminCharts {
             final_chart = final_chart.series(series);
         }
 
-        ChartGenerator::generate_svg(final_chart)
+        ChartGenerator::generate_svg(final_chart, theme)
     }
 
     /// Generate difficulty distribution horizontal bar chart
-    pub fn difficulty_distribution(performance: Vec<DifficultyPerformance>) -> Result<String> {
+    pub fn difficulty_distribution(
+        performance: Vec<DifficultyPerformance>,
+        theme: Theme,
+    ) -> Result<String> {
         // Handle empty data case
         if performance.is_empty() {
-            let chart = ChartTheme::base_config()
+            let chart = Chart::new()
                 .title(
                     Title::new()
                         .text("Question Distribution by Difficulty - No Data Available")
                         .left("center"),
                 )
                 .series(Bar::new().name("Question Count").data(vec![0]));
-            return ChartGenerator::generate_svg(chart);
+            return ChartGenerator::generate_svg(chart, theme);
         }
 
         let difficulties: Vec<String> = performance.iter().map(|p| p.difficulty.clone()).collect();
@@ -149,7 +155,7 @@ impl AdminCharts {
             .map(|p| p.question_count as i32)
             .collect();
 
-        let chart = ChartTheme::base_config()
+        let chart = Chart::new()
             .title(
                 Title::new()
                     .text("Question Distribution by Difficulty")
@@ -180,24 +186,25 @@ impl AdminCharts {
             )
             .series(Bar::new().name("Question Count").data(question_counts));
 
-        ChartGenerator::generate_svg(chart)
+        ChartGenerator::generate_svg(chart, theme)
     }
 
     /// Generate question performance horizontal bar chart (worst performing questions)
     pub fn question_performance(
         questions: Vec<QuestionStatistics>,
         limit: usize,
+        theme: Theme,
     ) -> Result<String> {
         // Handle empty data case
         if questions.is_empty() {
-            let chart = ChartTheme::base_config()
+            let chart = Chart::new()
                 .title(
                     Title::new()
                         .text("Questions Needing Attention - No Data Available")
                         .left("center"),
                 )
                 .series(Bar::new().name("Success Rate").data(vec![0.0]));
-            return ChartGenerator::generate_svg(chart);
+            return ChartGenerator::generate_svg(chart, theme);
         }
 
         // Take worst performing questions (lowest success rates)
@@ -224,7 +231,7 @@ impl AdminCharts {
 
         let success_rates: Vec<f64> = limited_questions.iter().map(|q| q.success_rate).collect();
 
-        let chart = ChartTheme::base_config()
+        let chart = Chart::new()
             .title(
                 Title::new()
                     .text("Questions Needing Attention (Lowest Success Rates)")
@@ -257,17 +264,18 @@ impl AdminCharts {
             )
             .series(Bar::new().name("Success Rate").data(success_rates));
 
-        ChartGenerator::generate_svg(chart)
+        ChartGenerator::generate_svg(chart, theme)
     }
 
     /// Generate answer distribution pie chart for a specific question
     pub fn answer_distribution(
         question_text: &str,
         distribution: Vec<AnswerDistribution>,
+        theme: Theme,
     ) -> Result<String> {
         // Handle empty data case
         if distribution.is_empty() {
-            let chart = ChartTheme::base_config()
+            let chart = Chart::new()
                 .title(
                     Title::new()
                         .text(format!(
@@ -285,7 +293,7 @@ impl AdminCharts {
                         .name("Answer Selection")
                         .data(vec![(1.0, "No data")]),
                 );
-            return ChartGenerator::generate_svg(chart);
+            return ChartGenerator::generate_svg(chart, theme);
         }
 
         // Convert distribution to pie chart data (value, name) format
@@ -304,7 +312,7 @@ impl AdminCharts {
             })
             .collect();
 
-        let chart = ChartTheme::base_config()
+        let chart = Chart::new()
             .title(
                 Title::new()
                     .text(format!(
@@ -331,6 +339,6 @@ impl AdminCharts {
                     .data(pie_data),
             );
 
-        ChartGenerator::generate_svg(chart)
+        ChartGenerator::generate_svg(chart, theme)
     }
 }

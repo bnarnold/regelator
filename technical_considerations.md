@@ -227,6 +227,32 @@ This document captures technical decisions, lessons learned, and implementation 
 **What to improve:**
 - Could add smooth scrolling CSS for better anchor navigation experience
 
+### Chart Theme Control Implementation (2025-08-11)
+**What worked well:**
+- Client Hints (`Accept-CH`, `Sec-CH-Prefers-Color-Scheme`) provide seamless browser theme detection
+- Charming library's built-in theme system (`CharmingTheme::Default`/`Dark`) handles theming elegantly
+- Custom axum extractors with `FromRequestParts` integrate cleanly with handler functions
+- Middleware approach for global Client Hints header works across all routes
+- Theme detection is automatic and requires no user interaction
+
+**What to improve:**
+- Initial implementation made assumptions about charming API instead of consulting documentation
+- Should verify library capabilities before implementing workarounds
+
+**Technical debt:**
+- None identified - implementation uses proper library patterns
+
+**Key decisions:**
+- Used Client Hints standard over manual theme toggles for better UX
+- Applied theme at renderer level (`ImageRenderer::new(800, 400).theme(theme.into())`)
+- Created reusable `Theme` enum with `Into<CharmingTheme>` conversion
+- Added middleware globally rather than per-route for consistency
+
+**Pair Programming Learning:**
+- Added section to pair programming guide about handling unfamiliar libraries
+- Emphasized importance of acknowledging knowledge gaps early
+- Documented approach for collaborative API exploration
+
 **Technical debt:**
 - None identified
 

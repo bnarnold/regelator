@@ -1,27 +1,29 @@
 use ammonia::clean;
 use axum::{
+    Router,
     extract::{FromRef, State},
-    http::{header, HeaderValue, StatusCode},
-    middleware,
+    http::{HeaderValue, StatusCode, header},
+    middleware as axum_middleware,
     response::{IntoResponse, Response},
     routing::{get, post},
-    Router,
 };
 use color_eyre::eyre::Context;
 use diesel::{
+    RunQueryDsl,
     r2d2::{ConnectionManager, Pool},
     sql_query,
     sqlite::SqliteConnection,
-    RunQueryDsl,
 };
 use minijinja::{Environment, Value};
-use pulldown_cmark::{html, Event, Parser, Tag};
+use pulldown_cmark::{Event, Parser, Tag, html};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{info, instrument, level_filters::LevelFilter};
 
 mod charts;
+mod extractors;
 mod handlers;
+mod middleware;
 mod models;
 mod quiz_session;
 mod repository;
@@ -62,13 +64,11 @@ fn markdown_filter(
         if let Some(obj) = context.as_object() {
             if let Some(iter) = obj.try_iter() {
                 iter.filter_map(|key| {
-                    if let Some(key_str) = key.as_str() {
-                        if let Ok(value) = context.get_item(&Value::from(key_str)) {
-                            if let Some(value_str) = value.as_str() {
+                    if let Some(key_str) = key.as_str()
+                        && let Ok(value) = context.get_item(&Value::from(key_str))
+                            && let Some(value_str) = value.as_str() {
                                 return Some((key_str.to_string(), value_str.to_string()));
                             }
-                        }
-                    }
                     None
                 })
                 .collect()
@@ -110,11 +110,10 @@ fn markdown_filter(
 
 /// Rewrite custom link schemes like "definition:slug" to full URLs
 fn rewrite_custom_link(dest_url: &str, link_map: &HashMap<String, String>) -> String {
-    if let Some((scheme, slug)) = dest_url.split_once(':') {
-        if let Some(prefix) = link_map.get(scheme) {
+    if let Some((scheme, slug)) = dest_url.split_once(':')
+        && let Some(prefix) = link_map.get(scheme) {
             return format!("{prefix}{slug}");
         }
-    }
 
     // Return original URL if not a custom scheme or scheme not found
     dest_url.to_string()
@@ -183,7 +182,7 @@ async fn health(State(state): State<AppState>) -> Result<&'static str, AppError>
 
 /// Initialize tracing subscriber based on configuration
 fn init_tracing(config: &LoggingConfig) -> color_eyre::Result<()> {
-    use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
+    use tracing_subscriber::{EnvFilter, Registry, layer::SubscriberExt, util::SubscriberInitExt};
 
     let env_filter = EnvFilter::builder()
         .with_default_directive(LevelFilter::from_level(config.level).into())
@@ -292,7 +291,9 @@ async fn main() {
                     "/{language}/quiz/{rule_set_slug}/clear",
                     get(handlers::clear_session_data),
                 )
-                .layer(middleware::from_fn(quiz_session::quiz_session_middleware)),
+                .layer(axum_middleware::from_fn(
+                    quiz_session::quiz_session_middleware,
+                )),
         )
         // Admin routes
         .route(
@@ -364,6 +365,7 @@ async fn main() {
             )
             .layer(ServeDir::new("static")),
         )
+        .layer(axum_middleware::from_fn(middleware::add_client_hints))
         .layer(CompressionLayer::new())
         .with_state(state);
 
@@ -383,7 +385,7 @@ mod tests {
 
     #[test]
     fn test_markdown_filter_basic_features() {
-        use minijinja::{context, Environment};
+        use minijinja::{Environment, context};
 
         let mut env = Environment::new();
         env.add_filter("markdown", markdown_filter);
@@ -402,13 +404,16 @@ mod tests {
         let ctx = context! { content => "[link text](https://example.com)" };
         let tmpl = env.template_from_str("{{ content | markdown }}").unwrap();
         let result = tmpl.render(&ctx).unwrap();
-        assert!(result
-            .contains("<a href=\"https://example.com\" rel=\"noopener noreferrer\">link text</a>"));
+        assert!(
+            result.contains(
+                "<a href=\"https://example.com\" rel=\"noopener noreferrer\">link text</a>"
+            )
+        );
     }
 
     #[test]
     fn test_markdown_filter_xss_protection() {
-        use minijinja::{context, Environment};
+        use minijinja::{Environment, context};
 
         let mut env = Environment::new();
         env.add_filter("markdown", markdown_filter);
@@ -427,7 +432,7 @@ mod tests {
 
     #[test]
     fn test_markdown_filter_safe_html() {
-        use minijinja::{context, Environment};
+        use minijinja::{Environment, context};
 
         let mut env = Environment::new();
         env.add_filter("markdown", markdown_filter);
@@ -443,7 +448,7 @@ mod tests {
 
     #[test]
     fn test_markdown_filter_link_rewriting() {
-        use minijinja::{context, Environment};
+        use minijinja::{Environment, context};
 
         let mut env = Environment::new();
         env.add_filter("markdown", markdown_filter);
@@ -471,7 +476,7 @@ mod tests {
 
     #[test]
     fn test_markdown_filter_no_link_context() {
-        use minijinja::{context, Environment};
+        use minijinja::{Environment, context};
 
         let mut env = Environment::new();
         env.add_filter("markdown", markdown_filter);
@@ -492,7 +497,7 @@ mod tests {
 
     #[test]
     fn test_markdown_filter_mixed_links() {
-        use minijinja::{context, Environment};
+        use minijinja::{Environment, context};
 
         let mut env = Environment::new();
         env.add_filter("markdown", markdown_filter);

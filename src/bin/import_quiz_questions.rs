@@ -1,4 +1,4 @@
-use color_eyre::{eyre::WrapErr, Result};
+use color_eyre::{Result, eyre::WrapErr};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use regex::Regex;
@@ -217,7 +217,9 @@ fn parse_question_with_difficulty(line: &str) -> Result<(String, &str)> {
             )),
         }
     } else {
-        Err(color_eyre::eyre::eyre!("Question must start with difficulty level in brackets: [BEGINNER], [INTERMEDIATE], or [ADVANCED]"))
+        Err(color_eyre::eyre::eyre!(
+            "Question must start with difficulty level in brackets: [BEGINNER], [INTERMEDIATE], or [ADVANCED]"
+        ))
     }
 }
 
