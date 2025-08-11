@@ -369,10 +369,10 @@ EXPLAIN: After a contested foul, play resumes with the stall count at the count 
 - Rule learning effectiveness measurement
 - Content optimization data
 
-### Story 7: Usage Statistics Analysis & Reporting (Fred) 🏗️
+### Story 7: Usage Statistics Analysis & Reporting (Fred) ✅ **COMPLETED**
 **Goal:** Provide Fred with insights for educational planning and content improvement
 
-**Implementation Status:** In Progress - 4/5 subtasks completed (Foundation, Question Detail View, Chart Theme Control, CSV Export complete)
+**Implementation Status:** Complete - 5/5 subtasks completed (Foundation, Question Detail View, Chart Theme Control, CSV Export, Parquet Export all complete)
 
 #### **Subtask 7.1: Basic Statistics Infrastructure & Text Tables** ✅ **COMPLETED**
 **Priority:** High (Foundation) | **Effort:** 1-2 days | **Completed:** 2025-08-09
@@ -495,21 +495,24 @@ EXPLAIN: After a contested foul, play resumes with the stall count at the count 
 - **Filter Integration**: Respects current dashboard filter settings (date ranges, etc.)
 - **Excel Compatibility**: Professional CSV format suitable for spreadsheet analysis
 
-#### **Subtask 7.5: Parquet Export for Advanced Analytics** 🎯
+#### **Subtask 7.5: Parquet Export for Advanced Analytics** ✅ **COMPLETED** (2025-08-11)
 **Priority:** Low | **Effort:** 1-2 days
 
 **Acceptance Criteria:**
-- [ ] Integrate Apache Arrow/Parquet library for Rust
-- [ ] Export structured data in Parquet format with proper schema
-- [ ] Include metadata columns (export timestamp, data range)
-- [ ] Support columnar data optimization and compression options
-- [ ] Create separate endpoint for Parquet downloads
+- [x] Integrate Apache Arrow/Parquet library for Rust
+- [x] Export structured data in Parquet format with proper schema
+- [x] Include metadata columns (export timestamp, data range)
+- [x] Support columnar data optimization and compression options
+- [x] Create separate endpoint for Parquet downloads
 
-**Technical Implementation:**
-- Add `arrow` and `parquet` crate dependencies
-- Handler: `export_stats_parquet()` in `src/handlers/admin.rs`
-- Schema: Structured Parquet schema for quiz analytics with question metadata, attempt facts, temporal dimensions
-- Data transformation: Convert database results to Arrow format
+**Technical Implementation Completed:**
+- ✅ Added `arrow-array` and `arrow-schema` v56.0 and `parquet` v56.0 crate dependencies
+- ✅ Handler: `export_stats_parquet()` in `src/handlers/admin.rs` with date filtering support
+- ✅ Schema: Structured Parquet schema with List<Struct> for nested answer analytics (text, is_correct, sort_order, selection_count, selection_percentage)
+- ✅ Data transformation: `QuizAnalyticsBuilders` with nested ListBuilder<StructBuilder> for Arrow format conversion
+- ✅ Route: `/admin/stats/export.parquet` endpoint with filter parameter support
+- ✅ UI: Added "🏗️ Export Parquet" button to admin stats dashboard
+- ✅ Code Reuse: Maximized reuse of existing `get_questions_with_selection_data_for_export()` repository method
 
 **Implementation Timeline:**
 - **Week 1**: Subtasks 7.1 & 7.2 (Core functionality and detail views)

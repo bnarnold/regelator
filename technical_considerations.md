@@ -709,6 +709,34 @@ struct SessionStatsView { ... }
 - Combined with explanations, exports enable comprehensive content quality review
 - Performance metrics + selection patterns help identify systematic learning gaps
 
+## Story 7.5: Parquet Export Implementation (2025-08-11)
+
+### Key Technical Challenge: Arrow Schema Compatibility
+**Problem:** Arrow schema compatibility between builders and pre-defined schemas is complex due to nullable field handling.
+
+**Solution:** Use builder-generated schema approach instead of pre-defined schema:
+- ListBuilder automatically creates nullable inner fields (`nullable: true`)
+- Pre-defined schemas expected non-nullable fields (`nullable: false`) 
+- Implemented `finish_temp()` method to extract actual schema from builders
+- Use actual column data types to ensure 100% compatibility
+
+**Lesson Learned:** When working with Arrow/Parquet nested schemas, let the builders define the schema rather than forcing compliance with pre-defined schemas. The `finish_temp()` approach is a working pattern but could be improved with better schema design up-front.
+
+### Arrow/Parquet Version Compatibility
+**Problem:** Arrow crate ecosystem has complex version dependencies with chrono conflicts.
+
+**Solution:** 
+- Used Arrow 56.0 with Parquet 56.0 (latest compatible versions)
+- Added separate `arrow-array` and `arrow-schema` dependencies alongside `parquet`
+- Import from arrow crates directly, not from `parquet::arrow::`
+
+### List<Struct> Implementation Success
+**Achievement:** Successfully implemented nested List<Struct> structure as requested:
+- Single table with answers as `List<Struct>` containing 5 fields
+- Maximized code reuse with existing `get_questions_with_selection_data_for_export()` 
+- Provides analytics-optimized columnar storage for Fred's advanced use cases
+- Clean API: `crate::analytics::questions_to_record_batch()` and `write_parquet()`
+
 ---
 
 *Last updated: 2025-08-11*

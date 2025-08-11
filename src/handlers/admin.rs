@@ -834,6 +834,62 @@ pub async fn answer_distribution_chart(
         .unwrap())
 }
 
+/// Export admin statistics as Parquet with nested answer structure
+#[instrument(skip(repository, _admin), fields(admin_username = %_admin.username()))]
+pub async fn export_stats_parquet(
+    State(repository): State<RuleRepository>,
+    _admin: AdminToken,
+    Query(params): Query<StatsQueryParams>,
+) -> Result<axum::response::Response, AppError> {
+    // Parse date range (same logic as stats dashboard)
+    let (start_date, end_date) = match params.filter.as_deref() {
+        Some("7days") => {
+            let end = Utc::now().date_naive();
+            let start = end - chrono::Duration::days(7);
+            (Some(start), Some(end))
+        }
+        Some("30days") => {
+            let end = Utc::now().date_naive();
+            let start = end - chrono::Duration::days(30);
+            (Some(start), Some(end))
+        }
+        Some("custom") => (params.start_date, params.end_date),
+        _ => (None, None),
+    };
+
+    // Get questions with selection data for export (reuse existing repository method)
+    let questions = repository
+        .get_questions_with_selection_data_for_export(start_date, end_date)
+        .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to get export data: {}", e)))?;
+
+    // Convert to Arrow RecordBatch with List<Struct> structure
+    let record_batch = crate::analytics::questions_to_record_batch(questions).map_err(|e| {
+        AppError(color_eyre::eyre::eyre!(
+            "Failed to create RecordBatch: {}",
+            e
+        ))
+    })?;
+
+    // Write to Parquet format
+    let parquet_data = crate::analytics::write_parquet(record_batch)
+        .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to write Parquet: {}", e)))?;
+
+    // Generate timestamped filename
+    let timestamp = Utc::now().format("%Y-%m-%d_%H%M");
+    let filename = format!("quiz_statistics_{}.parquet", timestamp);
+
+    // Return Parquet response with download headers
+    Ok(axum::response::Response::builder()
+        .header(axum::http::header::CONTENT_TYPE, "application/octet-stream")
+        .header(
+            axum::http::header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{}\"", filename),
+        )
+        .header(axum::http::header::CACHE_CONTROL, "no-cache")
+        .body(axum::body::Body::from(parquet_data))
+        .unwrap())
+}
+
 /// Export admin statistics as CSV with answer selection analytics
 #[instrument(skip(repository, _admin), fields(admin_username = %_admin.username()))]
 pub async fn export_stats_csv(

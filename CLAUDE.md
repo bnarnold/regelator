@@ -63,6 +63,9 @@ The underlying rules document, and all applications, should be localized, with a
 - Format code with `cargo fmt`
 - Lint code with `cargo clippy`
 
+## Dependency Management
+- For editing dependencies, use `cargo add` and `cargo remove`. **Never** edit Cargo.toml directly
+
 ## Code Quality Requirements
 
 **IMPORTANT**: Before committing any code changes, ALWAYS run these commands in order:
@@ -72,7 +75,7 @@ The underlying rules document, and all applications, should be localized, with a
 3. `cargo check` - Verify compilation without building
 4. `cargo clippy` - Check for any remaining lint warnings
 
-These steps ensure code quality, consistency, and catch common issues before they enter the repository. All clippy warnings should be resolved before committing.
+These steps ensure code quality, consistency, and catch common issues before entering the repository. All clippy warnings should be resolved before committing.
 
 ## Configuration System
 

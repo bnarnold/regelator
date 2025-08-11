@@ -122,13 +122,20 @@
                     <h2>Question Performance</h2>
                     <p>Showing questions sorted by success rate (struggling questions first)</p>
                 </div>
-                <div>
+                <div style="display: flex; gap: 0.5rem;">
                     <a href="/admin/stats/export.csv?filter={{ current_filter_value }}&start_date={{ current_start_date }}&end_date={{ current_end_date }}" 
                        class="outline" 
                        role="button" 
                        style="font-size: 0.9rem; padding: 0.5rem 1rem;"
                        download>
                         📊 Export CSV
+                    </a>
+                    <a href="/admin/stats/export.parquet?filter={{ current_filter_value }}&start_date={{ current_start_date }}&end_date={{ current_end_date }}" 
+                       class="outline" 
+                       role="button" 
+                       style="font-size: 0.9rem; padding: 0.5rem 1rem;"
+                       download>
+                        🏗️ Export Parquet
                     </a>
                 </div>
             </div>

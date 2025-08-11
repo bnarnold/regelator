@@ -20,6 +20,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{info, instrument, level_filters::LevelFilter};
 
+mod analytics;
 mod charts;
 mod extractors;
 mod handlers;
@@ -323,6 +324,10 @@ async fn main() {
         .route(
             "/admin/stats/export.csv",
             get(handlers::admin::export_stats_csv),
+        )
+        .route(
+            "/admin/stats/export.parquet",
+            get(handlers::admin::export_stats_parquet),
         )
         // Admin chart routes
         .route(
