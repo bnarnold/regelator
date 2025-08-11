@@ -408,3 +408,29 @@ pub struct DifficultyAttemptBreakdown {
     pub success_count: usize,
     pub fail_count: usize,
 }
+
+/// Enhanced data structure for CSV export with answer selection analytics
+#[derive(Debug, Clone)]
+pub struct QuestionExportData {
+    pub question_id: String,
+    pub question_text: String,
+    pub explanation: String,
+    pub difficulty_level: String,
+    pub rule_references: String, // comma-separated rule numbers
+    pub total_attempts: usize,
+    pub correct_attempts: usize,
+    pub success_rate_percent: f64,
+    pub answers: Vec<AnswerExportData>, // Variable length with selection data
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: chrono::NaiveDateTime,
+}
+
+/// Answer data for CSV export including selection frequency analytics
+#[derive(Debug, Clone)]
+pub struct AnswerExportData {
+    pub text: String,
+    pub is_correct: bool,
+    pub sort_order: i32,
+    pub selection_count: usize, // How many times this answer was selected
+    pub selection_percentage: f64, // Percentage of total selections
+}

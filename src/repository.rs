@@ -1407,6 +1407,69 @@ impl RuleRepository {
         Ok(distribution)
     }
 
+    /// Get questions with selection data for CSV export
+    pub fn get_questions_with_selection_data_for_export(
+        &self,
+        start_date: Option<chrono::NaiveDate>,
+        end_date: Option<chrono::NaiveDate>,
+    ) -> Result<Vec<crate::models::quiz::QuestionExportData>> {
+        // Get question statistics (reuse existing method)
+        let question_stats = self.get_question_statistics(start_date, end_date, None, None)?;
+
+        let mut export_data = Vec::new();
+
+        for stat in question_stats {
+            // Get answer distribution for each question
+            let answer_distribution =
+                self.get_answer_distribution(&stat.question_id, start_date, end_date)?;
+
+            // Get question and answers for metadata
+            let (question, answers) = self
+                .get_question_with_answers(&stat.question_id)?
+                .ok_or_else(|| {
+                    color_eyre::eyre::eyre!("Question not found: {}", stat.question_id)
+                })?;
+
+            // Combine data into export structure
+            let mut export_answers: Vec<crate::models::quiz::AnswerExportData> = Vec::new();
+
+            for answer in answers {
+                let distribution = answer_distribution
+                    .iter()
+                    .find(|ad| ad.answer_id == answer.id);
+
+                export_answers.push(crate::models::quiz::AnswerExportData {
+                    text: answer.answer_text,
+                    is_correct: answer.is_correct,
+                    sort_order: answer.sort_order,
+                    selection_count: distribution.map(|d| d.selection_count).unwrap_or(0),
+                    selection_percentage: distribution
+                        .map(|d| d.selection_percentage)
+                        .unwrap_or(0.0),
+                });
+            }
+
+            // Sort answers by sort_order for consistent output
+            export_answers.sort_by_key(|a| a.sort_order);
+
+            export_data.push(crate::models::quiz::QuestionExportData {
+                question_id: stat.question_id,
+                question_text: stat.question_text,
+                explanation: question.explanation,
+                difficulty_level: stat.difficulty_level,
+                rule_references: stat.rule_reference.unwrap_or_default(),
+                total_attempts: stat.total_attempts,
+                correct_attempts: stat.correct_attempts,
+                success_rate_percent: stat.success_rate * 100.0,
+                answers: export_answers,
+                created_at: question.created_at,
+                updated_at: question.updated_at,
+            });
+        }
+
+        Ok(export_data)
+    }
+
     // Chart-optimized repository methods for admin analytics
 
     /// Get daily attempts by difficulty with success/fail breakdown for stacked area chart

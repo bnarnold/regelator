@@ -667,6 +667,48 @@ struct SessionStatsView { ... }
 - **Chart Libraries**: Integration with charming/Apache ECharts now has clean date data
 - **Export Formats**: CSV and Parquet exports will have properly typed date columns
 
+### CSV Export Implementation with Dynamic Column Generation (2025-08-11)
+**What worked well:**
+- Manual CSV generation with Rust's `csv` crate provides complete control over dynamic column structures
+- Dynamic header generation based on max answer count handles variable-length relational data cleanly
+- Leveraging existing analytics infrastructure (`get_question_statistics()`, `get_answer_distribution()`) for comprehensive data
+- Answer selection analytics provide invaluable insights for content quality assessment
+- Template integration with filter preservation creates seamless user experience
+
+**What to improve:**
+- Object-relational impedance mismatch requires careful consideration in CSV export design
+- Large datasets might benefit from streaming CSV generation instead of in-memory construction
+
+**Technical debt:**
+- None identified - clean implementation with proper error handling
+
+**Key decisions:**
+- **Dynamic Column Generation**: Used manual CSV construction with `csv::Writer` instead of derive macros to handle variable answer counts
+- **Answer Selection Analytics**: Included selection frequency and percentage data for each answer option
+- **Comprehensive Data Export**: Added explanation field and rule references for complete question analysis
+- **Filter Integration**: CSV export respects all dashboard filter settings (date ranges, etc.)
+- **Excel Compatibility**: Professional CSV format with proper headers and data types suitable for spreadsheet analysis
+
+**Architecture Lessons:**
+- Manual CSV generation provides better control than automatic serialization for complex relational data
+- Dynamic column structures require careful consideration of object-relational mapping
+- Existing repository patterns scale well for complex export requirements
+- Template integration with query parameter preservation enables seamless user workflows
+
+**Data Export Strategy:**
+- For relational data with variable child records, consider the trade-offs:
+  - Fixed columns with padding (chosen): Excel-friendly, predictable structure
+  - Multiple files: Normalized but requires joins for analysis  
+  - JSON-in-CSV: Flexible but less spreadsheet-friendly
+  - Row-per-child: Fully normalized but duplicates parent data
+- Answer selection analytics transform raw attempt data into actionable insights for content creators
+- Filter preservation in export URLs maintains user context and reduces friction
+
+**Content Analytics Insights:**
+- Answer selection frequency reveals question quality issues (unused distractors, confusing options)
+- Combined with explanations, exports enable comprehensive content quality review
+- Performance metrics + selection patterns help identify systematic learning gaps
+
 ---
 
-*Last updated: 2025-08-10*
+*Last updated: 2025-08-11*

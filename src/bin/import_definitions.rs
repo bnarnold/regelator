@@ -45,14 +45,15 @@ fn read_definitions_from_stdin() -> Result<Vec<DefinitionData>> {
         if let Some(caps) = term_start_pattern.captures(line) {
             // Save the previous definition if we have one
             if let Some(term) = current_term.take()
-                && !current_definition.trim().is_empty() {
-                    let slug = generate_slug(&term);
-                    definitions.push(DefinitionData {
-                        term,
-                        slug,
-                        definition: current_definition.trim().to_string(),
-                    });
-                }
+                && !current_definition.trim().is_empty()
+            {
+                let slug = generate_slug(&term);
+                definitions.push(DefinitionData {
+                    term,
+                    slug,
+                    definition: current_definition.trim().to_string(),
+                });
+            }
 
             // Start new definition
             current_term = Some(caps.get(1).unwrap().as_str().trim().to_string());
@@ -70,14 +71,15 @@ fn read_definitions_from_stdin() -> Result<Vec<DefinitionData>> {
 
     // Don't forget the last definition
     if let Some(term) = current_term
-        && !current_definition.trim().is_empty() {
-            let slug = generate_slug(&term);
-            definitions.push(DefinitionData {
-                term,
-                slug,
-                definition: current_definition.trim().to_string(),
-            });
-        }
+        && !current_definition.trim().is_empty()
+    {
+        let slug = generate_slug(&term);
+        definitions.push(DefinitionData {
+            term,
+            slug,
+            definition: current_definition.trim().to_string(),
+        });
+    }
 
     Ok(definitions)
 }

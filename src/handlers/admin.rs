@@ -833,3 +833,120 @@ pub async fn answer_distribution_chart(
         .body(axum::body::Body::from(svg_content))
         .unwrap())
 }
+
+/// Export admin statistics as CSV with answer selection analytics
+#[instrument(skip(repository, _admin), fields(admin_username = %_admin.username()))]
+pub async fn export_stats_csv(
+    State(repository): State<RuleRepository>,
+    _admin: AdminToken,
+    Query(params): Query<StatsQueryParams>,
+) -> Result<axum::response::Response, AppError> {
+    // Parse date range (same logic as stats dashboard)
+    let (start_date, end_date) = match params.filter.as_deref() {
+        Some("7days") => {
+            let end = Utc::now().date_naive();
+            let start = end - chrono::Duration::days(7);
+            (Some(start), Some(end))
+        }
+        Some("30days") => {
+            let end = Utc::now().date_naive();
+            let start = end - chrono::Duration::days(30);
+            (Some(start), Some(end))
+        }
+        Some("custom") => (params.start_date, params.end_date),
+        _ => (None, None),
+    };
+
+    // Get questions with selection data for export
+    let questions = repository
+        .get_questions_with_selection_data_for_export(start_date, end_date)
+        .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to get export data: {}", e)))?;
+
+    // Find maximum number of answers across all questions
+    let max_answers = questions.iter().map(|q| q.answers.len()).max().unwrap_or(0);
+
+    // Build dynamic headers
+    let mut headers = vec![
+        "question_id".to_string(),
+        "question_text".to_string(),
+        "explanation".to_string(),
+        "difficulty_level".to_string(),
+        "rule_references".to_string(),
+        "total_attempts".to_string(),
+        "correct_attempts".to_string(),
+        "success_rate_percent".to_string(),
+    ];
+
+    for i in 1..=max_answers {
+        headers.push(format!("answer_{}_text", i));
+        headers.push(format!("answer_{}_correct", i));
+        headers.push(format!("answer_{}_selections", i));
+        headers.push(format!("answer_{}_percentage", i));
+    }
+    headers.extend_from_slice(&["created_at".to_string(), "updated_at".to_string()]);
+
+    // Write CSV with manual row construction
+    let mut csv_output = Vec::new();
+    {
+        let mut wtr = csv::Writer::from_writer(&mut csv_output);
+        wtr.write_record(&headers).map_err(|e| {
+            AppError(color_eyre::eyre::eyre!(
+                "Failed to write CSV headers: {}",
+                e
+            ))
+        })?;
+
+        for question in questions {
+            let mut row = vec![
+                question.question_id,
+                question.question_text,
+                question.explanation,
+                question.difficulty_level,
+                question.rule_references,
+                question.total_attempts.to_string(),
+                question.correct_attempts.to_string(),
+                format!("{:.1}", question.success_rate_percent),
+            ];
+
+            // Add answers with padding for missing ones
+            for i in 0..max_answers {
+                if let Some(answer) = question.answers.get(i) {
+                    row.push(answer.text.clone());
+                    row.push(answer.is_correct.to_string());
+                    row.push(answer.selection_count.to_string());
+                    row.push(format!("{:.1}", answer.selection_percentage));
+                } else {
+                    row.extend_from_slice(&[
+                        String::new(),
+                        String::new(),
+                        String::new(),
+                        String::new(),
+                    ]);
+                }
+            }
+
+            row.push(question.created_at.format("%Y-%m-%d %H:%M:%S").to_string());
+            row.push(question.updated_at.format("%Y-%m-%d %H:%M:%S").to_string());
+
+            wtr.write_record(&row)
+                .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to write CSV row: {}", e)))?;
+        }
+        wtr.flush()
+            .map_err(|e| AppError(color_eyre::eyre::eyre!("Failed to flush CSV: {}", e)))?;
+    }
+
+    // Generate timestamped filename
+    let timestamp = Utc::now().format("%Y-%m-%d_%H%M");
+    let filename = format!("quiz_statistics_{}.csv", timestamp);
+
+    // Return CSV response with download headers
+    Ok(axum::response::Response::builder()
+        .header(axum::http::header::CONTENT_TYPE, "text/csv; charset=utf-8")
+        .header(
+            axum::http::header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{}\"", filename),
+        )
+        .header(axum::http::header::CACHE_CONTROL, "no-cache")
+        .body(axum::body::Body::from(csv_output))
+        .unwrap())
+}

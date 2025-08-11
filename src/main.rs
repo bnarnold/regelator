@@ -66,9 +66,10 @@ fn markdown_filter(
                 iter.filter_map(|key| {
                     if let Some(key_str) = key.as_str()
                         && let Ok(value) = context.get_item(&Value::from(key_str))
-                            && let Some(value_str) = value.as_str() {
-                                return Some((key_str.to_string(), value_str.to_string()));
-                            }
+                        && let Some(value_str) = value.as_str()
+                    {
+                        return Some((key_str.to_string(), value_str.to_string()));
+                    }
                     None
                 })
                 .collect()
@@ -111,9 +112,10 @@ fn markdown_filter(
 /// Rewrite custom link schemes like "definition:slug" to full URLs
 fn rewrite_custom_link(dest_url: &str, link_map: &HashMap<String, String>) -> String {
     if let Some((scheme, slug)) = dest_url.split_once(':')
-        && let Some(prefix) = link_map.get(scheme) {
-            return format!("{prefix}{slug}");
-        }
+        && let Some(prefix) = link_map.get(scheme)
+    {
+        return format!("{prefix}{slug}");
+    }
 
     // Return original URL if not a custom scheme or scheme not found
     dest_url.to_string()
@@ -317,6 +319,10 @@ async fn main() {
         .route(
             "/admin/stats/question/{question_id}",
             get(handlers::admin::admin_question_detail_stats),
+        )
+        .route(
+            "/admin/stats/export.csv",
+            get(handlers::admin::export_stats_csv),
         )
         // Admin chart routes
         .route(

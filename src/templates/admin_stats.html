@@ -117,8 +117,21 @@
     <!-- Question Performance Table -->
     <section>
         <header>
-            <h2>Question Performance</h2>
-            <p>Showing questions sorted by success rate (struggling questions first)</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div>
+                    <h2>Question Performance</h2>
+                    <p>Showing questions sorted by success rate (struggling questions first)</p>
+                </div>
+                <div>
+                    <a href="/admin/stats/export.csv?filter={{ current_filter_value }}&start_date={{ current_start_date }}&end_date={{ current_end_date }}" 
+                       class="outline" 
+                       role="button" 
+                       style="font-size: 0.9rem; padding: 0.5rem 1rem;"
+                       download>
+                        📊 Export CSV
+                    </a>
+                </div>
+            </div>
         </header>
         
         {% if question_stats %}

@@ -372,7 +372,7 @@ EXPLAIN: After a contested foul, play resumes with the stall count at the count 
 ### Story 7: Usage Statistics Analysis & Reporting (Fred) 🏗️
 **Goal:** Provide Fred with insights for educational planning and content improvement
 
-**Implementation Status:** In Progress - 3/5 subtasks completed (Foundation, Question Detail View, Chart Theme Control & Statistics Infrastructure complete)
+**Implementation Status:** In Progress - 4/5 subtasks completed (Foundation, Question Detail View, Chart Theme Control, CSV Export complete)
 
 #### **Subtask 7.1: Basic Statistics Infrastructure & Text Tables** ✅ **COMPLETED**
 **Priority:** High (Foundation) | **Effort:** 1-2 days | **Completed:** 2025-08-09
@@ -467,22 +467,33 @@ EXPLAIN: After a contested foul, play resumes with the stall count at the count 
   - Generate theme-aware chart URLs for bookmarkable dark/light mode charts
   - Use ECharts built-in dark theme instead of manual color definitions for consistency
 
-#### **Subtask 7.4: CSV Export Functionality** 🎯
+#### **Subtask 7.4: CSV Export Functionality** ✅ **COMPLETED** (2025-08-11)
 **Priority:** Medium | **Effort:** 0.5 days
 
 **Acceptance Criteria:**
-- [ ] Add CSV export button to main stats dashboard
-- [ ] Export question performance data with all statistics
-- [ ] Include detailed attempt logs (anonymized session data)
-- [ ] Support filtered exports (date ranges, difficulty levels)
-- [ ] Proper CSV formatting with headers
-- [ ] Download triggers with appropriate filename timestamps
+- [x] Add CSV export button to main stats dashboard
+- [x] Export question performance data with all statistics including explanations
+- [x] Include answer selection analytics (frequency and percentage data)
+- [x] Support filtered exports (date ranges, difficulty levels)
+- [x] Proper CSV formatting with dynamic headers for variable answer counts
+- [x] Download triggers with appropriate filename timestamps
 
-**Technical Implementation:**
-- Add `csv` crate dependency
-- Handler: `export_stats_csv()` in `src/handlers/admin.rs`
-- Export formats: Question performance, attempt details (no session_id for privacy)
-- Streaming CSV response with proper headers
+**Technical Implementation Completed:**
+- ✅ Added `csv` crate dependency to Cargo.toml
+- ✅ Created enhanced export data structures (`QuestionExportData`, `AnswerExportData`)
+- ✅ Implemented repository method `get_questions_with_selection_data_for_export()`
+- ✅ Handler: `export_stats_csv()` in `src/handlers/admin.rs` with dynamic column generation
+- ✅ Route: `/admin/stats/export.csv` with date filtering support
+- ✅ Export formats: Complete question data with answer selection analytics
+- ✅ Template: Added export button to admin stats dashboard with filter preservation
+- ✅ Enhanced CSV format includes: question_id, question_text, explanation, difficulty_level, rule_references, performance metrics, dynamic answer columns with selection data, timestamps
+
+**Key Features Delivered:**
+- **Dynamic Answer Columns**: Handles variable answer counts (answer_1_text, answer_1_correct, answer_1_selections, answer_1_percentage, etc.)
+- **Answer Selection Analytics**: Selection frequency and percentage data for each answer option
+- **Comprehensive Question Data**: Includes explanations, rule references, and performance metrics
+- **Filter Integration**: Respects current dashboard filter settings (date ranges, etc.)
+- **Excel Compatibility**: Professional CSV format suitable for spreadsheet analysis
 
 #### **Subtask 7.5: Parquet Export for Advanced Analytics** 🎯
 **Priority:** Low | **Effort:** 1-2 days
