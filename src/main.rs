@@ -18,7 +18,7 @@ use minijinja::{Environment, Value};
 use pulldown_cmark::{Event, Parser, Tag, html};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tracing::{info, instrument, level_filters::LevelFilter};
+use tracing::{info, instrument, level_filters::LevelFilter, warn};
 
 mod analytics;
 mod charts;
@@ -239,6 +239,35 @@ fn init_tracing(config: &LoggingConfig) -> color_eyre::Result<()> {
     Ok(())
 }
 
+/// Create a cross-platform shutdown signal handler
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {
+            info!("Received Ctrl+C signal, initiating graceful shutdown");
+        }
+        _ = terminate => {
+            info!("Received SIGTERM signal, initiating graceful shutdown");
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     // Initialize error reporting
@@ -250,6 +279,7 @@ async fn main() {
     init_tracing(&state.config.logging).expect("Failed to initialize tracing");
 
     let bind_address = state.config.bind_address();
+    let shutdown_timeout = state.config.shutdown_timeout();
 
     let app = Router::new()
         .route(
@@ -386,8 +416,26 @@ async fn main() {
 
     let actual_address = listener.local_addr().expect("Get local address");
     info!("Server listening on {}", actual_address);
+    info!("Configured shutdown timeout: {:?}", shutdown_timeout);
 
-    axum::serve(listener, app).await.expect("Serve app");
+    // Serve with graceful shutdown
+    let server = axum::serve(listener, app).with_graceful_shutdown(shutdown_signal());
+
+    info!("Server starting with graceful shutdown handling");
+
+    // Handle the server result and shutdown process
+    match server.await {
+        Ok(()) => {
+            info!("Server shut down gracefully");
+        }
+        Err(e) => {
+            warn!("Server error during shutdown: {}", e);
+        }
+    }
+
+    // Give a brief moment for final log messages to be processed
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    info!("Application shutdown complete");
 }
 
 #[cfg(test)]

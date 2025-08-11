@@ -2,7 +2,7 @@
 
 This document tracks development of production-ready deployment, monitoring, security, and operational features for Regelator.
 
-## Phase Status: 🏗️ **In Progress** (3/10 stories completed)
+## Phase Status: 🏗️ **In Progress** (4/11 stories completed)
 
 ## Epic Overview
 
@@ -188,6 +188,40 @@ This document tracks development of production-ready deployment, monitoring, sec
 - Production deployment health visibility
 - Integration with monitoring systems
 - Automated failure detection and recovery
+
+### Story 3.1: Graceful Shutdown Signal Handling ✅
+**Goal:** Implement cross-platform graceful shutdown signal handling for development and containerized environments
+
+**Acceptance Criteria:**
+- [x] Handle shutdown signals cross-platform (Ctrl+C on all platforms)
+- [x] Handle SIGTERM for Linux containers (Docker/Kubernetes)
+- [x] Allow existing requests to complete during shutdown grace period
+- [x] Close database connections cleanly
+- [x] Implement configurable shutdown timeout
+- [x] Add shutdown logging for operational visibility
+- [x] Test shutdown behavior in container environments
+
+**Implementation Completed:** 2025-08-11
+- **Signal Handling**: Cross-platform `tokio::signal::ctrl_c()` + Unix SIGTERM support
+- **Configuration**: Added `shutdown_timeout_seconds` with 30s default, environment override support
+- **Graceful Shutdown**: Replaced `axum::serve()` with `.with_graceful_shutdown()` 
+- **Database Cleanup**: Automatic connection pool cleanup during shutdown
+- **Logging**: Structured shutdown event logging with operational visibility
+- **Testing**: All tests pass, code compiles successfully
+
+**Technical Implementation:**
+- Replace `axum::serve()` with `axum::serve().with_graceful_shutdown()`
+- Use `tokio::signal::ctrl_c()` for cross-platform Ctrl+C handling
+- Add SIGTERM handling for Linux containers using `tokio::signal::unix`
+- Implement graceful shutdown with timeout configuration
+- Add proper cleanup of database connection pool
+- Add structured logging for shutdown events
+
+**Benefits:**
+- Clean application shutdown across development platforms (Windows/macOS/Linux)
+- Proper container orchestration support for Docker/Kubernetes
+- Prevents connection termination and ensures data consistency
+- Operational visibility into shutdown behavior
 
 ### Story 4: Docker and Container Deployment 🎯
 **Goal:** Container-based deployment with proper security and optimization

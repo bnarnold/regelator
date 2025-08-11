@@ -15,6 +15,7 @@ pub struct Config {
 pub struct ServerConfig {
     pub host: String,
     pub port: u16,
+    pub shutdown_timeout_seconds: u64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -148,6 +149,11 @@ impl Config {
     pub fn session_duration(&self) -> chrono::Duration {
         chrono::Duration::hours(self.security.session_duration_hours as i64)
     }
+
+    /// Get shutdown timeout as tokio Duration
+    pub fn shutdown_timeout(&self) -> tokio::time::Duration {
+        tokio::time::Duration::from_secs(self.server.shutdown_timeout_seconds)
+    }
 }
 
 #[cfg(test)]
@@ -160,6 +166,7 @@ mod tests {
             server: ServerConfig {
                 host: "0.0.0.0".to_string(),
                 port: 3000,
+                shutdown_timeout_seconds: 30,
             },
             database: DatabaseConfig {
                 url: "test.db".to_string(),
@@ -184,6 +191,7 @@ mod tests {
             server: ServerConfig {
                 host: "127.0.0.1".to_string(),
                 port: 8000,
+                shutdown_timeout_seconds: 30,
             },
             database: DatabaseConfig {
                 url: "test.db".to_string(),

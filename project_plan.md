@@ -50,7 +50,7 @@ Master roadmap organizing development epics for the Ultimate Frisbee rules refer
 **Why**: Enable reliable, secure, and scalable deployment of Regelator for real-world usage with proper monitoring and maintenance capabilities  
 
 **Detail Plan**: `project_plan_production_ready.md`  
-**Status**: 🏗️ **In Progress** (3/10 stories completed - Configuration system, code organization, and tracing infrastructure complete)
+**Status**: 🏗️ **In Progress** (4/11 stories completed - Configuration system, code organization, tracing infrastructure, and graceful shutdown complete)
 
 ---
 

@@ -737,6 +737,48 @@ struct SessionStatsView { ... }
 - Provides analytics-optimized columnar storage for Fred's advanced use cases
 - Clean API: `crate::analytics::questions_to_record_batch()` and `write_parquet()`
 
+### Story 3.1: Graceful Shutdown Signal Handling (2025-08-11)
+
+**What worked well:**
+- Tokio's signal handling provides excellent cross-platform compatibility with `tokio::signal::ctrl_c()`
+- Unix-specific SIGTERM handling via `tokio::signal::unix` integrates cleanly with conditional compilation
+- Axum's `.with_graceful_shutdown()` method provides seamless integration with existing server setup
+- Configuration-based timeout management follows established patterns from earlier stories
+- Structured logging provides operational visibility into shutdown process
+
+**What to improve:**
+- Could add more sophisticated timeout handling for different shutdown phases
+- Database connection cleanup could be more explicit (currently relies on connection pool Drop)
+
+**Technical debt:**
+- None identified - clean implementation following Rust and Axum best practices
+
+**Key decisions:**
+- **Cross-platform Signal Handling**: Used `tokio::signal::ctrl_c()` for universal Ctrl+C support + Unix SIGTERM for container environments
+- **Graceful Integration**: Leveraged Axum's built-in graceful shutdown rather than implementing custom solution
+- **Configuration Management**: Added `shutdown_timeout_seconds` to server config with 30s default
+- **Operational Logging**: Added structured logging for shutdown events with appropriate log levels
+
+**Architecture Lessons:**
+- **Platform Abstraction**: Tokio provides excellent abstractions for cross-platform signal handling
+- **Framework Integration**: Modern frameworks like Axum often provide built-in solutions for common production needs
+- **Configuration Patterns**: Consistent configuration structure scales well across different server settings
+- **Conditional Compilation**: Rust's `#[cfg(unix)]` enables platform-specific code without runtime overhead
+- **Future Pattern**: Using `std::future::pending()` as no-op future for non-Unix platforms is clean and efficient
+
+**Production Readiness Achieved:**
+- **Container Orchestration**: Proper SIGTERM handling for Docker/Kubernetes graceful shutdown
+- **Development Experience**: Ctrl+C works consistently across Windows, macOS, and Linux
+- **Operational Visibility**: Shutdown process logging enables debugging and monitoring
+- **Configurable Behavior**: Production deployments can adjust timeout based on application needs
+- **Clean Shutdown**: Existing requests complete naturally, database connections close properly
+
+**Container Deployment Benefits:**
+- **Docker Compatibility**: Responds correctly to `docker stop` signals
+- **Kubernetes Readiness**: Handles pod termination signals during rolling updates
+- **Load Balancer Integration**: Graceful shutdown prevents connection drops during deployments
+- **Zero-Downtime Deployments**: Foundation for blue-green and rolling deployment strategies
+
 ---
 
 *Last updated: 2025-08-11*

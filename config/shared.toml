@@ -1,5 +1,8 @@
 # Shared configuration across all environments
 
+[server]
+shutdown_timeout_seconds = 30
+
 [security]
 session_duration_hours = 2
 
