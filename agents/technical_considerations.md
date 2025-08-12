@@ -779,6 +779,39 @@ struct SessionStatsView { ... }
 - **Load Balancer Integration**: Graceful shutdown prevents connection drops during deployments
 - **Zero-Downtime Deployments**: Foundation for blue-green and rolling deployment strategies
 
+## Project Documentation Organization (2025-08-12)
+
+**What worked well:**
+- Clear logical separation: `docs/` for technical documentation vs `agents/` for workflow and planning files
+- File organization enables better maintainability and team understanding
+- CLAUDE.md reference updates maintain consistency across the codebase
+- Creating comprehensive README.md provides professional project overview
+
+**What to improve:**
+- Could automate reference updates when files are moved
+- Future file moves should consider impact on external links/bookmarks
+
+**Technical debt:**
+- None identified - clean organization structure
+
+**Key decisions:**
+- **Documentation Structure**: `docs/` for architecture and data model design vs `agents/` for workflow and project planning
+- **Professional README**: Added comprehensive project overview noting AI-generated codebase
+- **Reference Consistency**: Updated all file paths in CLAUDE.md to maintain accuracy
+- **AI Attribution**: Clear notation that codebase is primarily AI-generated through Claude Code collaboration
+
+**Architecture Lessons:**
+- **Clear Boundaries**: Technical documentation vs. workflow documentation should be separated
+- **Professional Presentation**: README.md serves as critical first impression for project
+- **Reference Maintenance**: Moving files requires careful attention to all references
+- **AI Transparency**: Clear attribution builds trust and sets proper expectations
+
+**Project Management Benefits:**
+- **Better Navigation**: Logical file organization reduces cognitive load for new team members
+- **Professional Appearance**: Comprehensive README enables better project presentation
+- **Workflow Clarity**: Agent-specific files clearly separated from technical documentation
+- **Maintainability**: Organized structure scales better as project grows
+
 ---
 
-*Last updated: 2025-08-11*
+*Last updated: 2025-08-12*
